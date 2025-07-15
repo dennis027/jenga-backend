@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView 
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView
 
 urlpatterns = [
     path('api/register/', RegisterView.as_view(), name='register'),
@@ -10,5 +10,12 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/logout/', LogoutView.as_view(), name='logout'),
     path('api/login-cookie/', CookieLoginView.as_view(), name='login-cookie'),
-
+    path('api/profile/', ProfileUpdateView.as_view(), name='profile-update'),
+    path('api/gigs/', LogGigView.as_view(), name='log-gig'),
+    path('api/gigs/verify/<int:gig_id>/', VerifyGigView.as_view(), name='verify-gig'), 
+    path('api/gigs-list/', GigListView.as_view(), name='gig-list'),
+    path('api/user/', UserProfileView.as_view(), name='user-profile'),
+    path('api/job-types/', JobTypeListCreateView.as_view(), name='list_create_job_types'),
+    path('api/job-types/<int:pk>/', JobTypeDeleteView.as_view(), name='delete_job_type'),
 ]
+  

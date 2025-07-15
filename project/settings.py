@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY'),
+SECRET_KEY = 'django-insecure-+0q4+wo03-a)+s8+vax9m0*uxuv#brhd78=g5%i6)x=8io!2vu'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -144,7 +144,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
-    'DEFAULT_PERMISSION_CLASSES': (
+    'DEFAULT_PERMISSION_CLASSES': (  
         'rest_framework.permissions.IsAuthenticated',
     ),
 }
@@ -152,13 +152,14 @@ REST_FRAMEWORK = {
 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+
+    'TOKEN_OBTAIN_SERIALIZER': 'yourapp.serializers.MyTokenObtainPairSerializer',  # 👈
 }
-
-
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",       # Django itself (optional)
@@ -171,3 +172,6 @@ CORS_ALLOW_ALL_ORIGINS = True  # Use with caution in production
 
 CORS_ALLOW_CREDENTIALS = True
 
+
+
+AUTH_USER_MODEL = 'app.User'
