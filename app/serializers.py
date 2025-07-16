@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken  
-from .models import User,Gig,JobType  # use your custom user model
+from .models import User,Gig,JobType,Payment  # use your custom user model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -64,3 +64,10 @@ class JobTypeSerializer(serializers.ModelSerializer):
         model = JobType
         fields = ['id', 'name', 'code']
         read_only_fields = ['code']
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = '__all__'
+        read_only_fields = ['user', 'payment_date', 'is_confirmed']

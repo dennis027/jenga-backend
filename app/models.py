@@ -4,6 +4,7 @@ from django.db import models
 from django.conf import settings
 import datetime
 
+
 class User(AbstractUser):
     ACCOUNT_TYPE_CHOICES = (
         ('01', 'Fundi'),
@@ -71,3 +72,16 @@ class Gig(models.Model):
 
     class Meta:
         db_table = 'app_gig' 
+
+
+
+class Payment(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    transaction_code = models.CharField(max_length=100)
+    payment_date = models.DateTimeField(auto_now_add=True)
+    screenshot = models.ImageField(upload_to='payments/', null=True, blank=True)
+    is_confirmed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.transaction_code}"

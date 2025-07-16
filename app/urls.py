@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView    ,LoggedByUserGigListView
 
 urlpatterns = [
     path('api/register/', RegisterView.as_view(), name='register'),
@@ -17,5 +17,7 @@ urlpatterns = [
     path('api/user/', UserProfileView.as_view(), name='user-profile'),
     path('api/job-types/', JobTypeListCreateView.as_view(), name='list_create_job_types'),
     path('api/job-types/<int:pk>/', JobTypeDeleteView.as_view(), name='delete_job_type'),
+    path('api/user-gigs/', LoggedByUserGigListView.as_view(), name='user-gigs'),
+    path('api/upload-payment/', PaymentUploadView.as_view(), name='upload_payment'),
 ]
   

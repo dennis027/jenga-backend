@@ -1,13 +1,14 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import authenticate
-from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer
+from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer
 from rest_framework import status, permissions,generics
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils.timezone import now
 from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
-from .models import Gig,JobType
+from .models import Gig,JobType,Payment
+from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 
 class RegisterView(APIView):
     permission_classes = []
@@ -163,6 +164,13 @@ class GigListView(APIView):
         serializer = GigSerializer(gigs, many=True)
         return Response(serializer.data)
     
+class LoggedByUserGigListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        gigs = Gig.objects.filter(logged_by=request.user)
+        serializer = GigSerializer(gigs, many=True)
+        return Response(serializer.data)
 
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
@@ -188,3 +196,16 @@ class JobTypeDeleteView(APIView):
             return Response({"message": "Job type deleted."}, status=status.HTTP_204_NO_CONTENT)
         except JobType.DoesNotExist:
             return Response({"error": "Job type not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+
+
+class PaymentUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]  # allow both
+
+    def post(self, request):
+        serializer = PaymentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)  
