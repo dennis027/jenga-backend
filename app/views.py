@@ -1,14 +1,51 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.contrib.auth import authenticate
-from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer
+from django.contrib.auth import authenticate,get_user_model
+from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer
 from rest_framework import status, permissions,generics
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils.timezone import now
 from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
-from .models import Gig,JobType,Payment
+from .models import Gig,JobType,Payment,GigHistory
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
+from django.db.models import Q 
+
+User = get_user_model()
+
+
+class CheckEmailExists(APIView):
+    def get(self, request):
+        email = request.query_params.get('email')
+        if not email:
+            return Response({"error": "Email parameter is required"}, status=400)
+        
+        if User.objects.filter(email__iexact=email).exists():
+            return Response({"exists": True, "message": "Email already exists"}, status=200)
+        return Response({"exists": False, "message": "Email is available"}, status=200)
+
+
+class CheckUsernameExists(APIView):
+    def get(self, request):
+        username = request.query_params.get('username')
+        if not username:
+            return Response({"error": "Username parameter is required"}, status=400)
+        
+        if User.objects.filter(username__iexact=username).exists():
+            return Response({"exists": True, "message": "Username already exists"}, status=200)
+        return Response({"exists": False, "message": "Username is available"}, status=200)
+
+
+class CheckPhoneExists(APIView):
+    def get(self, request):
+        phone = request.query_params.get('phone')
+        if not phone:
+            return Response({"error": "Phone parameter is required"}, status=400)
+        
+        if User.objects.filter(phone__iexact=phone).exists():
+            return Response({"exists": True, "message": "Phone number already exists"}, status=200)
+        return Response({"exists": False, "message": "Phone number is available"}, status=200)
+
 
 class RegisterView(APIView):
     permission_classes = []
@@ -25,23 +62,37 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+
+
+
 class LoginView(APIView):
     permission_classes = []
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
-            user = authenticate(
-                username=serializer.validated_data['username'],
-                password=serializer.validated_data['password']
-            )
+            login_input = serializer.validated_data['username']
+            password = serializer.validated_data['password']
+
+            try:
+                user = User.objects.get(
+                    Q(username__iexact=login_input) |
+                    Q(email__iexact=login_input) |
+                    Q(phone__iexact=login_input)  # You must ensure your User model has this field
+                )
+            except User.DoesNotExist:
+                return Response({"error": "User not found"}, status=status.HTTP_401_UNAUTHORIZED)
+
+            user = authenticate(username=user.username, password=password)
             if user:
                 refresh = RefreshToken.for_user(user)
                 return Response({
                     'refresh': str(refresh),
                     'access': str(refresh.access_token)
                 })
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+            else:
+                return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LogoutView(APIView):
@@ -209,3 +260,26 @@ class PaymentUploadView(APIView):
             serializer.save(user=request.user)
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)  
+    
+
+
+class GigHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = GigHistorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(worker=request.user)  # attach the logged-in user
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+
+class UserGigHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        histories = GigHistory.objects.filter(worker=request.user)
+        serializer = GigHistorySerializer(histories, many=True)
+        return Response(serializer.data)

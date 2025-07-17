@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView    ,LoggedByUserGigListView
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView    ,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists
 
 urlpatterns = [
     path('api/register/', RegisterView.as_view(), name='register'),
@@ -19,5 +19,11 @@ urlpatterns = [
     path('api/job-types/<int:pk>/', JobTypeDeleteView.as_view(), name='delete_job_type'),
     path('api/user-gigs/', LoggedByUserGigListView.as_view(), name='user-gigs'),
     path('api/upload-payment/', PaymentUploadView.as_view(), name='upload_payment'),
+    path('api/work-history/', GigHistoryView.as_view(), name='work-history'),
+    path('api/user-work-history/', UserGigHistoryView.as_view(), name='my-work-history'),
+    path('api/check-email/', CheckEmailExists.as_view(), name='check-email'),
+    path('api/check-username/', CheckUsernameExists.as_view(), name='check-username'),
+    path('api/check-phone/', CheckPhoneExists.as_view(), name='check-phone'),
+
 ]
   

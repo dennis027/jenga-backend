@@ -1,25 +1,40 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken  
-from .models import User,Gig,JobType,Payment  # use your custom user model
+from .models import User,Gig,JobType,Payment,GigHistory  # use your custom user model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-    confirm_password = serializers.CharField(write_only=True)
-
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'confirm_password', 'account_type']
+        fields = ['username', 'email', 'phone', 'password', 'account_type', 'full_name', 'national_id', 'location']
 
-    def validate(self, data):
-        if data['password'] != data['confirm_password']:
-            raise serializers.ValidationError("Passwords do not match.")
-        return data
+    def validate_email(self, value):
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("Email already in use.")
+        return value
+
+    def validate_phone(self, value):
+        if User.objects.filter(phone__iexact=value).exists():
+            raise serializers.ValidationError("Phone number already in use.")
+        return value
+
+    def validate_username(self, value):
+        if User.objects.filter(username__iexact=value).exists():
+            raise serializers.ValidationError("Username already in use.")
+        return value
 
     def create(self, validated_data):
-        validated_data.pop('confirm_password')
-        return User.objects.create_user(**validated_data)
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
+    
+
 
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField()
@@ -55,9 +70,13 @@ class GigSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'account_type','full_name', 'national_id', 'location', 'phone', 'profile_pic']
+        fields = ['username', 'email', 'phone', 'full_name', 'location', 'profile_pic']  # include other editable fields
 
-
+    def validate_phone(self, value):
+        user = self.instance  # the currently authenticated user
+        if User.objects.filter(phone__iexact=value).exclude(pk=user.pk).exists():
+            raise serializers.ValidationError("Phone number is already in use.")
+        return value
         
 class JobTypeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -71,3 +90,10 @@ class PaymentSerializer(serializers.ModelSerializer):
         model = Payment
         fields = '__all__'
         read_only_fields = ['user', 'payment_date', 'is_confirmed']
+
+
+
+class GigHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GigHistory
+        fields = '__all__'
