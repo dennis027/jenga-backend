@@ -1,13 +1,13 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import authenticate,get_user_model
-from .serializers import RegisterSerializer, LoginSerializer, SuccessfulMpesaTransactionSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer, MpesaTransactionSerializer
+from .serializers import RegisterSerializer, LoginSerializer, SuccessfulMpesaTransactionSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer, MpesaTransactionSerializer,OrganizationSerializer
 from rest_framework import status, permissions,generics
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils.timezone import now
 from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
-from .models import Gig,JobType,Payment,GigHistory, MpesaTransaction, SuccessfulMpesaTransaction
+from .models import Gig,JobType,Payment,GigHistory, MpesaTransaction, SuccessfulMpesaTransaction, Organization
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Q 
 from .utils import lipa_na_mpesa
@@ -387,7 +387,7 @@ class MPESACallbackView(APIView):
     
 
 
-    
+
     
 class MpesaTransactionListView(APIView):
     def get(self, request):
@@ -400,3 +400,40 @@ class MpesaTransactionListView(APIView):
 class SuccessfulMpesaTransactionListView(generics.ListAPIView):
     queryset = SuccessfulMpesaTransaction.objects.all().order_by('-transaction_date')
     serializer_class = SuccessfulMpesaTransactionSerializer
+
+
+
+# organization model
+
+class OrganizationListCreateView(generics.ListCreateAPIView):
+    serializer_class = OrganizationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Organization.objects.filter(owner=self.request.user, is_active=True)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+class OrganizationDetailUpdateView(generics.RetrieveUpdateAPIView):
+    serializer_class = OrganizationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = 'pk'
+
+    def get_queryset(self):
+        return Organization.objects.filter(owner=self.request.user)
+
+class OrganizationSoftDeleteView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            organization = Organization.objects.get(pk=pk, owner=request.user)
+            organization.is_active = not organization.is_active
+            organization.save()
+            return Response({
+                "status": "success",
+                "message": f"Organization is_active set to {organization.is_active}"
+            })
+        except Organization.DoesNotExist:
+            return Response({"error": "Organization not found"}, status=status.HTTP_404_NOT_FOUND)

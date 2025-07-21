@@ -64,6 +64,8 @@ class Gig(models.Model):
         related_name='verified_gigs'
     )
 
+    organization = models.ForeignKey('Organization', on_delete=models.SET_NULL, null=True, blank=True, related_name='gigs')
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -132,3 +134,38 @@ class SuccessfulMpesaTransaction(models.Model):
 
     def __str__(self):
         return f"{self.phone} - {self.amount} - {self.mpesa_receipt_number}"
+
+
+
+
+
+
+class Organization(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+
+    # Supervisor who created the organization
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='organizations'
+    )
+
+    county = models.CharField(max_length=100)
+    constituency = models.CharField(max_length=100)
+    ward = models.CharField(max_length=100)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.owner.username})"
+
+    @property
+    def total_gigs(self):
+        return self.gigs.count()
+
+    @property
+    def available_gigs(self):
+        return self.gigs.filter(worker__isnull=True).count()

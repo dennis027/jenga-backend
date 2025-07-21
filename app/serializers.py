@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken  
-from .models import SuccessfulMpesaTransaction, User,Gig,JobType,Payment,GigHistory,MpesaTransaction  # use your custom user model
+from .models import SuccessfulMpesaTransaction, User,Gig,JobType,Payment,GigHistory,MpesaTransaction,Organization  # use your custom user model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 
@@ -109,4 +109,11 @@ class MpesaTransactionSerializer(serializers.ModelSerializer):
 class SuccessfulMpesaTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SuccessfulMpesaTransaction
+        fields = '__all__'
+
+
+
+class OrganizationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
         fields = '__all__'

@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, SuccessfulMpesaTransactionListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists,STKPushView, MPESACallbackView,MpesaTransactionListView
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, SuccessfulMpesaTransactionListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists,STKPushView, MPESACallbackView,MpesaTransactionListView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView
 
 
 urlpatterns = [
@@ -29,6 +29,9 @@ urlpatterns = [
     path("api/callback/", MPESACallbackView.as_view(), name="mpesa_callback"),
     path('api/transactions/', MpesaTransactionListView.as_view(), name='transaction_list'),
     path('api/successful-transactions/', SuccessfulMpesaTransactionListView.as_view(), name='successful-transactions'),
+    path('api/organizations/', OrganizationListCreateView.as_view(), name='organization-list-create'),
+    path('api/organizations/<int:pk>/', OrganizationDetailUpdateView.as_view(), name='organization-detail-update'),
+    path('api/organizations/<int:pk>/toggle-active/', OrganizationSoftDeleteView.as_view(), name='organization-soft-delete'),
 
 ]
   
