@@ -1,15 +1,28 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import authenticate,get_user_model
-from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer
+from .serializers import RegisterSerializer, LoginSerializer, SuccessfulMpesaTransactionSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer, MpesaTransactionSerializer
 from rest_framework import status, permissions,generics
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils.timezone import now
 from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
-from .models import Gig,JobType,Payment,GigHistory
+from .models import Gig,JobType,Payment,GigHistory, MpesaTransaction, SuccessfulMpesaTransaction
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Q 
+from .utils import lipa_na_mpesa
+import json
+import logging
+import json
+from rest_framework.parsers import JSONParser
+from django.utils.dateparse import parse_datetime
+from datetime import datetime
+from django.utils import timezone
+
+
+
+logger = logging.getLogger(__name__)
+
 
 User = get_user_model()
 
@@ -283,3 +296,107 @@ class UserGigHistoryView(APIView):
         histories = GigHistory.objects.filter(worker=request.user)
         serializer = GigHistorySerializer(histories, many=True)
         return Response(serializer.data)
+    
+
+class STKPushView(APIView):
+    def post(self, request):
+        phone = request.data.get("phone")
+        amount = request.data.get("amount")
+
+        if not phone or not amount:
+            return Response({"error": "Phone and amount are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            response = lipa_na_mpesa(phone, amount)
+            print(response)  # Debugging line to see the response
+            # Save transaction
+            MpesaTransaction.objects.create(
+                phone=phone,
+                amount=amount,
+                merchant_request_id=response.get("MerchantRequestID"),
+                checkout_request_id=response.get("CheckoutRequestID"),
+                response_code=response.get("ResponseCode"),
+                response_description=response.get("ResponseDescription"),
+                customer_message=response.get("CustomerMessage"),
+            )
+
+            return Response(response)
+        except Exception as e:
+            logger.error(str(e))
+            return Response({"error": "Something went wrong"}, status=500)
+        
+
+
+class MPESACallbackView(APIView):
+    def post(self, request):
+        try:
+            # 🔍 Log full raw request for debugging
+            logger.info("🔥 M-Pesa Raw Callback:\n%s", json.dumps(request.data, indent=2))
+
+            callback = request.data.get("Body", {}).get("stkCallback", {})
+            result_code = callback.get("ResultCode")
+            result_desc = callback.get("ResultDesc")
+            merchant_request_id = callback.get("MerchantRequestID")
+            checkout_request_id = callback.get("CheckoutRequestID")
+
+            metadata = callback.get("CallbackMetadata", {}).get("Item", [])
+
+            # ❗️Handle case where metadata is missing
+            if not metadata:
+                logger.warning("⚠️ CallbackMetadata missing or empty. Skipping transaction save.")
+                return Response({"ResultCode": 0, "ResultDesc": "No data to process."})
+
+            # 🧠 Convert list of metadata items into a dictionary
+            data = {item['Name']: item.get('Value') for item in metadata}
+
+            phone = str(data.get("PhoneNumber", ""))
+            amount = data.get("Amount", 0)
+            mpesa_receipt_number = data.get("MpesaReceiptNumber", "")
+            transaction_date_str = str(data.get("TransactionDate", ""))
+            transaction_date = timezone.now()
+
+            # ⏰ Parse Safaricom's timestamp format
+            try:
+                if transaction_date_str and len(transaction_date_str) == 14:
+                    transaction_date = datetime.strptime(transaction_date_str, "%Y%m%d%H%M%S")
+            except Exception as e:
+                logger.warning("⚠️ Failed to parse transaction date: %s", str(e))
+
+            # ✅ Save successful transaction if not already recorded
+            if result_code == 0 and mpesa_receipt_number:
+                if not SuccessfulMpesaTransaction.objects.filter(mpesa_receipt_number=mpesa_receipt_number).exists():
+                    SuccessfulMpesaTransaction.objects.create(
+                        phone=phone,
+                        amount=amount,
+                        mpesa_receipt_number=mpesa_receipt_number,
+                        transaction_date=transaction_date,
+                        merchant_request_id=merchant_request_id,
+                        checkout_request_id=checkout_request_id
+                    )
+                    logger.info("✅ Successful M-Pesa transaction saved.")
+                else:
+                    logger.info("ℹ️ Transaction already exists.")
+            else:
+                logger.warning("⚠️ Transaction not successful or missing receipt number.")
+
+        except Exception as e:
+            logger.error("❌ Error processing M-Pesa callback: %s", str(e))
+
+        # Always respond to Safaricom with ResultCode 0
+        return Response({"ResultCode": 0, "ResultDesc": "Accepted"})
+    
+
+
+    
+    
+class MpesaTransactionListView(APIView):
+    def get(self, request):
+        transactions = MpesaTransaction.objects.all().order_by('-created_at')
+        serializer = MpesaTransactionSerializer(transactions, many=True)
+        return Response(serializer.data)
+    
+
+
+class SuccessfulMpesaTransactionListView(generics.ListAPIView):
+    queryset = SuccessfulMpesaTransaction.objects.all().order_by('-transaction_date')
+    serializer_class = SuccessfulMpesaTransactionSerializer

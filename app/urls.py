@@ -2,7 +2,8 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView    ,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, SuccessfulMpesaTransactionListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists,STKPushView, MPESACallbackView,MpesaTransactionListView
+
 
 urlpatterns = [
     path('api/register/', RegisterView.as_view(), name='register'),
@@ -24,6 +25,10 @@ urlpatterns = [
     path('api/check-email/', CheckEmailExists.as_view(), name='check-email'),
     path('api/check-username/', CheckUsernameExists.as_view(), name='check-username'),
     path('api/check-phone/', CheckPhoneExists.as_view(), name='check-phone'),
+    path("api/stk-push/", STKPushView.as_view(), name="stk_push"),
+    path("api/callback/", MPESACallbackView.as_view(), name="mpesa_callback"),
+    path('api/transactions/', MpesaTransactionListView.as_view(), name='transaction_list'),
+    path('api/successful-transactions/', SuccessfulMpesaTransactionListView.as_view(), name='successful-transactions'),
 
 ]
   

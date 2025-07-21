@@ -14,6 +14,12 @@ from pathlib import Path
 from decouple import config 
 from datetime import timedelta
 
+import environ
+
+env = environ.Env()
+environ.Env.read_env()
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -158,7 +164,7 @@ SIMPLE_JWT = {
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
 
-    'TOKEN_OBTAIN_SERIALIZER': 'yourapp.serializers.MyTokenObtainPairSerializer',  # 👈
+    'TOKEN_OBTAIN_SERIALIZER': 'app.serializers.MyTokenObtainPairSerializer',  # 👈
 }
 
 CORS_ALLOWED_ORIGINS = [
@@ -175,3 +181,10 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 AUTH_USER_MODEL = 'app.User'
+
+MPESA_CONSUMER_KEY = config('MPESA_CONSUMER_KEY')
+MPESA_CONSUMER_SECRET = config('MPESA_CONSUMER_SECRET')
+MPESA_SHORTCODE = config('MPESA_SHORTCODE')
+MPESA_PASSKEY = config('MPESA_PASSKEY')
+MPESA_BASE_URL = "https://sandbox.safaricom.co.ke" 
+MPESA_CALLBACK_URL = "https://fdf0d6bb745e.ngrok-free.app/api/callback/"
