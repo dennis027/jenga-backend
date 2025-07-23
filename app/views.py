@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import authenticate,get_user_model
-from .serializers import RegisterSerializer, LoginSerializer, SuccessfulMpesaTransactionSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer, MpesaTransactionSerializer,OrganizationSerializer
+from .serializers import RegisterSerializer, LoginSerializer, SuccessfulMpesaTransactionSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer, MpesaTransactionSerializer,OrganizationSerializer,UserDetailWithGigsSerializer
 from rest_framework import status, permissions,generics
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils.timezone import now
@@ -18,6 +18,8 @@ from rest_framework.parsers import JSONParser
 from django.utils.dateparse import parse_datetime
 from datetime import datetime
 from django.utils import timezone
+from rest_framework.authentication import TokenAuthentication  # or JWT
+from rest_framework.pagination import PageNumberPagination
 
 
 
@@ -437,3 +439,24 @@ class OrganizationSoftDeleteView(APIView):
             })
         except Organization.DoesNotExist:
             return Response({"error": "Organization not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+
+
+class WorkerSearchAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        query = request.query_params.get('q', None)
+
+        if not query:
+            return Response({"error": "Please provide a search query (?q=)"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(
+                Q(username__iexact=query) |
+                Q(email__iexact=query) |
+                Q(phone__iexact=query)
+            )
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        data = UserDetailWithGigsSerializer(user).data
+        return Response(data, status=status.HTTP_200_OK)

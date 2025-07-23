@@ -117,3 +117,24 @@ class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = '__all__'
+        read_only_fields = ['owner', 'created_at']
+
+
+class UserDetailWithGigsSerializer(serializers.ModelSerializer):
+    gigs = serializers.SerializerMethodField()
+    gig_history = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'full_name', 'email', 'phone', 'location',
+            'profile_pic', 'account_type', 'gigs', 'gig_history'
+        ]
+
+    def get_gigs(self, obj):
+        gigs = Gig.objects.filter(worker=obj)
+        return GigSerializer(gigs, many=True).data
+
+    def get_gig_history(self, obj):
+        history = GigHistory.objects.filter(worker=obj)
+        return GigHistorySerializer(history, many=True).data
