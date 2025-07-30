@@ -16,7 +16,7 @@ class User(AbstractUser):
     location = models.CharField(max_length=100, blank=True)
     phone = models.CharField(max_length=20, unique=True, blank=False)  
     email = models.EmailField(unique=True, blank=False) 
-    profile_pic = models.ImageField(upload_to='profiles/', blank=True, null=True)
+    profile_pic = models.ImageField(upload_to='MEDIA/profiles/', blank=True, null=True)
 
 
 class JobType(models.Model):
@@ -64,7 +64,7 @@ class Gig(models.Model):
         related_name='verified_gigs'
     )
 
-    organization = models.ForeignKey('Organization', on_delete=models.SET_NULL, null=True, blank=True, related_name='gigs')
+    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, related_name='gigs')
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -83,7 +83,7 @@ class Payment(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     transaction_code = models.CharField(max_length=100)
     payment_date = models.DateTimeField(auto_now_add=True)
-    screenshot = models.ImageField(upload_to='payments/', null=True, blank=True)
+    screenshot = models.ImageField(upload_to='MEDIA/payments/', null=True, blank=True)
     is_confirmed = models.BooleanField(default=False)
 
     def __str__(self):

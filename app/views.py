@@ -20,6 +20,7 @@ from datetime import datetime
 from django.utils import timezone
 from rest_framework.authentication import TokenAuthentication  # or JWT
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny
 
 
 
@@ -30,6 +31,7 @@ User = get_user_model()
 
 
 class CheckEmailExists(APIView):
+    permission_classes = [AllowAny]
     def get(self, request):
         email = request.query_params.get('email')
         if not email:
@@ -37,10 +39,11 @@ class CheckEmailExists(APIView):
         
         if User.objects.filter(email__iexact=email).exists():
             return Response({"exists": True, "message": "Email already exists"}, status=200)
-        return Response({"exists": False, "message": "Email is available"}, status=200)
+        return Response({"exists": False, "message": "Email is available"}, status=400)
 
 
 class CheckUsernameExists(APIView):
+    permission_classes = [AllowAny]
     def get(self, request):
         username = request.query_params.get('username')
         if not username:
@@ -48,10 +51,11 @@ class CheckUsernameExists(APIView):
         
         if User.objects.filter(username__iexact=username).exists():
             return Response({"exists": True, "message": "Username already exists"}, status=200)
-        return Response({"exists": False, "message": "Username is available"}, status=200)
+        return Response({"exists": False, "message": "Username is available"}, status=400)
 
 
 class CheckPhoneExists(APIView):
+    permission_classes = [AllowAny]
     def get(self, request):
         phone = request.query_params.get('phone')
         if not phone:
@@ -59,7 +63,7 @@ class CheckPhoneExists(APIView):
         
         if User.objects.filter(phone__iexact=phone).exists():
             return Response({"exists": True, "message": "Phone number already exists"}, status=200)
-        return Response({"exists": False, "message": "Phone number is available"}, status=200)
+        return Response({"exists": False, "message": "Phone number is available"}, status=400)
 
 
 class RegisterView(APIView):
@@ -180,14 +184,16 @@ class ProfileUpdateView(APIView):
 
 
 
-# 1. Log a new gig
 class LogGigView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         serializer = GigSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(worker=request.user, logged_by=request.user)
+            serializer.save(
+                worker=request.user,        # ✅ Assign worker from authenticated user
+                logged_by=request.user      # ✅ Assign logged_by as well
+            )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -227,6 +233,7 @@ class GigListView(APIView):
 
     def get(self, request):
         gigs = Gig.objects.all()
+        
         serializer = GigSerializer(gigs, many=True)
         return Response(serializer.data)
     
@@ -288,6 +295,18 @@ class GigHistoryView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+# single organization gigs view
+class OrganizationGigsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, org_id):
+        try:
+            organization = Organization.objects.get(id=org_id)
+        except Organization.DoesNotExist:
+            return Response({'error': 'Organization not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        gigs = Gig.objects.filter(organization=organization)
+        serializer = GigSerializer(gigs, many=True)
+        return Response(serializer.data)
 
 
 

@@ -2,8 +2,10 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, SuccessfulMpesaTransactionListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists,STKPushView, MPESACallbackView,MpesaTransactionListView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, SuccessfulMpesaTransactionListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists,STKPushView, MPESACallbackView,MpesaTransactionListView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView, OrganizationGigsAPIView
 
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('api/register/', RegisterView.as_view(), name='register'),
@@ -32,7 +34,8 @@ urlpatterns = [
     path('api/organizations/', OrganizationListCreateView.as_view(), name='organization-list-create'),
     path('api/organizations/<int:pk>/', OrganizationDetailUpdateView.as_view(), name='organization-detail-update'),
     path('api/organizations/<int:pk>/toggle-active/', OrganizationSoftDeleteView.as_view(), name='organization-soft-delete'),
+    path('api/organizations/<int:org_id>/gigs/', OrganizationGigsAPIView.as_view(), name='organization-gigs'),
     path('api/workers/search/', WorkerSearchAPIView.as_view(), name='worker-search'),
 
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
   
