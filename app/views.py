@@ -22,6 +22,15 @@ from rest_framework.authentication import TokenAuthentication  # or JWT
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 
+import pytesseract
+from PIL import Image
+from django.core.files.storage import default_storage
+from django.http import JsonResponse
+import re
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+
 
 
 logger = logging.getLogger(__name__)
@@ -431,7 +440,7 @@ class OrganizationListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Organization.objects.filter(owner=self.request.user, is_active=True)
+        return Organization.objects.all().order_by("id")
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -479,3 +488,98 @@ class WorkerSearchAPIView(APIView):
 
         data = UserDetailWithGigsSerializer(user).data
         return Response(data, status=status.HTTP_200_OK)
+    
+
+@csrf_exempt
+def extract_transaction_code(request):
+    if request.method == 'POST' and request.FILES.get('image'):
+        uploaded_image = request.FILES['image']
+        file_path = default_storage.save('temp/' + uploaded_image.name, uploaded_image)
+
+        image = Image.open(default_storage.path(file_path))
+        text = pytesseract.image_to_string(image)
+        
+        # Clean up temp file
+        default_storage.delete(file_path)
+        
+        # Clean and normalize text
+        clean_text = text.strip().replace('\n', ' ').replace('\r', ' ')
+        clean_text = ' '.join(clean_text.split())  # Remove extra whitespace
+        text_lower = clean_text.lower()
+        
+        # Check if it's a valid M-Pesa message
+        mpesa_indicators = ['confirmed', 'ksh', 'sent to', 'received from', 'mpesa']
+        found_indicators = sum(1 for indicator in mpesa_indicators if indicator in text_lower)
+        is_valid_mpesa = found_indicators >= 3
+        
+        # Check for message completeness
+        completeness_indicators = ['confirmed', 'ksh', 'transaction cost', 'account balance']
+        completeness_score = sum(1 for indicator in completeness_indicators if indicator in text_lower)
+        is_complete = completeness_score >= 3 or ('sent to' in text_lower or 'received from' in text_lower)
+        
+        # Extract transaction code - multiple patterns
+        transaction_code = None
+        
+        # Pattern 1: Code before "Confirmed"
+        match = re.search(r'\b([A-Z0-9]{8,12})\b(?=\s+[Cc]onfirmed)', clean_text)
+        if match:
+            transaction_code = match.group(1)
+        else:
+            # Pattern 2: Code after "Confirmed"
+            match = re.search(r'[Cc]onfirmed\.?\s+([A-Z0-9]{8,12})', clean_text)
+            if match:
+                transaction_code = match.group(1)
+            else:
+                # Pattern 3: General M-Pesa code format
+                codes = re.findall(r'\b([A-Z]{2}[0-9]{8}|[A-Z0-9]{10})\b', clean_text)
+                false_positives = ['MPESA', 'SAFARICOM', 'CONFIRMED']
+                valid_codes = [code for code in codes if code not in false_positives and len(code) >= 8]
+                if valid_codes:
+                    transaction_code = valid_codes[0]
+        
+        # Extract amount - multiple patterns
+        amount = None
+        
+        # Pattern 1: Amount before "sent to" or "received from"
+        match = re.search(r'[Kk][Ss][Hh]\.?\s*([0-9,]+\.?[0-9]*)\s+(?:sent\s+to|received\s+from)', clean_text, re.IGNORECASE)
+        if match:
+            amount_str = match.group(1).replace(',', '').strip()
+            try:
+                amount = float(amount_str)
+            except ValueError:
+                pass
+        
+        if not amount:
+            # Pattern 2: Amount after "Confirmed"
+            match = re.search(r'[Cc]onfirmed\.?\s+[Kk][Ss][Hh]\.?\s*([0-9,]+\.?[0-9]*)', clean_text)
+            if match:
+                amount_str = match.group(1).replace(',', '').strip()
+                try:
+                    amount = float(amount_str)
+                except ValueError:
+                    pass
+        
+        if not amount:
+            # Pattern 3: Any KSH amount (take the largest one)
+            amounts = re.findall(r'[Kk][Ss][Hh]\.?\s*([0-9,]+\.?[0-9]*)', clean_text)
+            if amounts:
+                valid_amounts = []
+                for amt in amounts:
+                    try:
+                        clean_amt = float(amt.replace(',', '').strip())
+                        if clean_amt > 0:
+                            valid_amounts.append(clean_amt)
+                    except ValueError:
+                        continue
+                if valid_amounts:
+                    amount = max(valid_amounts)  # Take the largest amount (likely the transaction amount)
+
+        return JsonResponse({
+            'text': text,
+            'transaction_code': transaction_code,
+            'amount': amount,
+            'is_valid_mpesa': is_valid_mpesa,
+            'is_complete_message': is_complete
+        })
+
+    return JsonResponse({'error': 'Image not provided'}, status=400)
