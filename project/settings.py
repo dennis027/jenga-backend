@@ -187,4 +187,4 @@ MPESA_CONSUMER_SECRET = config('MPESA_CONSUMER_SECRET')
 MPESA_SHORTCODE = config('MPESA_SHORTCODE')
 MPESA_PASSKEY = config('MPESA_PASSKEY')
 MPESA_BASE_URL = "https://sandbox.safaricom.co.ke" 
-MPESA_CALLBACK_URL = "https://fdf0d6bb745e.ngrok-free.app/api/callback/"
+MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL')

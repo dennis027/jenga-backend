@@ -21,7 +21,7 @@ from django.utils import timezone
 from rest_framework.authentication import TokenAuthentication  # or JWT
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
-
+import pytz
 import pytesseract
 from PIL import Image
 from django.core.files.storage import default_storage
@@ -29,6 +29,7 @@ from django.http import JsonResponse
 import re
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from decimal import Decimal, InvalidOperation
 
 
 
@@ -356,7 +357,7 @@ class STKPushView(APIView):
             return Response({"error": "Something went wrong"}, status=500)
         
 
-
+@method_decorator(csrf_exempt, name='dispatch')
 class MPESACallbackView(APIView):
     def post(self, request):
         try:

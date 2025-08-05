@@ -6,6 +6,7 @@ from .views import RegisterView, LoginView, LogoutView, CookieLoginView , Profil
 
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.decorators.csrf import csrf_exempt
 
 urlpatterns = [
     path('api/register/', RegisterView.as_view(), name='register'),
@@ -28,7 +29,7 @@ urlpatterns = [
     path('api/check-username/', CheckUsernameExists.as_view(), name='check-username'),
     path('api/check-phone/', CheckPhoneExists.as_view(), name='check-phone'),
     path("api/stk-push/", STKPushView.as_view(), name="stk_push"),
-    path("api/callback/", MPESACallbackView.as_view(), name="mpesa_callback"),
+    path('api/stk-callback/', csrf_exempt(MPESACallbackView.as_view()), name='stk_callback'),
     path('api/transactions/', MpesaTransactionListView.as_view(), name='transaction_list'),
     path('api/successful-transactions/', SuccessfulMpesaTransactionListView.as_view(), name='successful-transactions'),
     path('api/organizations/', OrganizationListCreateView.as_view(), name='organization-list-create'),
