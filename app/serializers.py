@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken  
-from .models import SuccessfulMpesaTransaction, User,Gig,JobType,Payment,GigHistory,MpesaTransaction,Organization  # use your custom user model
+from .models import  User,Gig,JobType,Payment,GigHistory,Organization,MpesaNewTransaction  # use your custom user model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 
@@ -101,19 +101,6 @@ class GigHistorySerializer(serializers.ModelSerializer):
 
 
 
-class MpesaTransactionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MpesaTransaction
-        fields = '__all__'
-
-
-class SuccessfulMpesaTransactionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SuccessfulMpesaTransaction
-        fields = '__all__'
-
-
-
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
@@ -137,5 +124,12 @@ class UserDetailWithGigsSerializer(serializers.ModelSerializer):
         return GigSerializer(gigs, many=True).data
 
     def get_gig_history(self, obj):
-        history = GigHistory.objects.filter(worker=obj)
-        return GigHistorySerializer(history, many=True).data
+        history = GigHistory.objects.filter(worker=obj)  
+        return GigHistorySerializer(history, many=True).data  
+    
+
+
+class MpesaNewTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MpesaNewTransaction
+        fields = '__all__'

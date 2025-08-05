@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, SuccessfulMpesaTransactionListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists,STKPushView, MPESACallbackView,MpesaTransactionListView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView, OrganizationGigsAPIView,extract_transaction_code
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,MpesaMessagesAPIView, OrganizationGigsAPIView,extract_transaction_code
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -18,7 +18,7 @@ urlpatterns = [
     path('api/gigs/', LogGigView.as_view(), name='log-gig'),
     path('api/gigs/verify/<int:gig_id>/', VerifyGigView.as_view(), name='verify-gig'), 
     path('api/gigs-list/', GigListView.as_view(), name='gig-list'),
-    path('api/user/', UserProfileView.as_view(), name='user-profile'),
+    path('api/user/', UserProfileView.as_view(), name='user-profile'), 
     path('api/job-types/', JobTypeListCreateView.as_view(), name='list_create_job_types'),
     path('api/job-types/<int:pk>/', JobTypeDeleteView.as_view(), name='delete_job_type'),
     path('api/user-gigs/', LoggedByUserGigListView.as_view(), name='user-gigs'),
@@ -28,16 +28,17 @@ urlpatterns = [
     path('api/check-email/', CheckEmailExists.as_view(), name='check-email'),
     path('api/check-username/', CheckUsernameExists.as_view(), name='check-username'),
     path('api/check-phone/', CheckPhoneExists.as_view(), name='check-phone'),
-    path("api/stk-push/", STKPushView.as_view(), name="stk_push"),
-    path('api/stk-callback/', csrf_exempt(MPESACallbackView.as_view()), name='stk_callback'),
-    path('api/transactions/', MpesaTransactionListView.as_view(), name='transaction_list'),
-    path('api/successful-transactions/', SuccessfulMpesaTransactionListView.as_view(), name='successful-transactions'),
     path('api/organizations/', OrganizationListCreateView.as_view(), name='organization-list-create'),
     path('api/organizations/<int:pk>/', OrganizationDetailUpdateView.as_view(), name='organization-detail-update'),
     path('api/organizations/<int:pk>/toggle-active/', OrganizationSoftDeleteView.as_view(), name='organization-soft-delete'),
     path('api/organizations/<int:org_id>/gigs/', OrganizationGigsAPIView.as_view(), name='organization-gigs'),
     path('api/workers/search/', WorkerSearchAPIView.as_view(), name='worker-search'),
-    path('api/extract-code/', extract_transaction_code, name='extract_code'),
+    path('api/extract-code/', extract_transaction_code, name='extract_code'),  
+
+
+    path('api/stk-new-push/', STKNewPushView.as_view()),
+    path('api/stk-new-callback/', STKNewCallbackView.as_view()),
+    path('api/mpesa-messages/', MpesaMessagesAPIView.as_view(), name='mpesa-messages'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
   
