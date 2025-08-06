@@ -8,7 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils.timezone import now
 from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
-from .models import Gig,JobType,Payment,GigHistory, Organization,MpesaNewTransaction
+from .models import Gig,JobType,Payment,GigHistory, Organization,MpesaNewTransaction,UserPaymentSession
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Q 
 from .utils import lipa_na_mpesa
@@ -498,8 +498,6 @@ def extract_transaction_code(request):
 #######  M-PESA STK Push and Callback Views ################
 ############################################################
 ############################################################
-
-
 def generate_password():
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     data = BUSINESS_SHORTCODE + PASSKEY + timestamp
@@ -514,6 +512,8 @@ def get_access_token():
     return response.json().get('access_token')
 
 class STKNewPushView(APIView):
+    permission_classes = [IsAuthenticated]  # Add authentication requirement
+    
     def post(self, request):
         phone = request.data.get("phone_number")
         amount = request.data.get("amount")
@@ -544,12 +544,31 @@ class STKNewPushView(APIView):
             "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
             json=payload, headers=headers
         )
+        
+        # Save user session after successful STK push
+        if response.status_code == 200:
+            response_data = response.json()
+            checkout_request_id = response_data.get('CheckoutRequestID')
+            merchant_request_id = response_data.get('MerchantRequestID')
+            
+            # Save user session
+            try:
+                UserPaymentSession.objects.create(
+                    user=request.user,  # The logged-in user
+                    checkout_request_id=checkout_request_id,
+                    merchant_request_id=merchant_request_id
+                )
+                logger.info(f"✅ User session saved for {request.user.username}")
+            except Exception as e:
+                logger.error(f"❌ Failed to save user session: {str(e)}")
+        
         return Response(response.json())
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class STKNewCallbackView(APIView):
     permission_classes = [AllowAny] 
+    
     def post(self, request):
         data = request.data
         logger.info("📥 M-Pesa Callback Received:\n%s", data)
@@ -560,11 +579,25 @@ class STKNewCallbackView(APIView):
         merchant_request_id = callback.get('MerchantRequestID')
         checkout_request_id = callback.get('CheckoutRequestID')
 
+        # Find the user who initiated this payment
+        user = None
+        try:
+            payment_session = UserPaymentSession.objects.get(
+                checkout_request_id=checkout_request_id
+            )
+            user = payment_session.user
+            logger.info(f"✅ Found user for payment: {user.username}")
+        except UserPaymentSession.DoesNotExist:
+            logger.warning(f"⚠️ No user session found for checkout_request_id: {checkout_request_id}")
+        except Exception as e:
+            logger.error(f"❌ Error finding user session: {str(e)}")
+
         if result_code == 0:  # Successful
             items = callback.get('CallbackMetadata', {}).get('Item', [])
             item_map = {item['Name']: item.get('Value') for item in items}
 
             transaction = MpesaNewTransaction.objects.create(
+                user=user,  # Add the user who submitted the gig
                 phone_number=item_map.get('PhoneNumber'),
                 amount=item_map.get('Amount'),
                 mpesa_receipt_number=item_map.get('MpesaReceiptNumber'),
@@ -579,6 +612,7 @@ class STKNewCallbackView(APIView):
         else:
             # Optionally log failed transactions
             MpesaNewTransaction.objects.create(
+                user=user,  # Add the user even for failed transactions
                 phone_number="Unknown",
                 amount=0,
                 mpesa_receipt_number="FAILED",
@@ -590,11 +624,10 @@ class STKNewCallbackView(APIView):
                 raw_callback=callback
             )
             return Response({"status": "failed", "reason": result_desc})
-        
 
 
 class MpesaMessagesAPIView(APIView):
-    # permission_classes = [AllowAny]  # or use custom auth if needed
+    permission_classes = [IsAuthenticated]  # Add authentication requirement
 
     def get(self, request):
         transactions = MpesaNewTransaction.objects.all().order_by('-transaction_date')
@@ -602,6 +635,24 @@ class MpesaMessagesAPIView(APIView):
         serializer = MpesaNewTransactionSerializer(transactions, many=True)  
         return Response(serializer.data, status=status.HTTP_200_OK)
     
+
+
+class UserMpesaMessagesAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Get transactions for only the logged-in user
+        user_transactions = MpesaNewTransaction.objects.filter(
+            user=request.user
+        ).order_by('-transaction_date')
+        
+        serializer = MpesaNewTransactionSerializer(user_transactions, many=True)
+        return Response({
+            "count": user_transactions.count(),
+            "user_id": request.user.id,
+            "username": request.user.username,
+            "transactions": serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 ###########################################################################

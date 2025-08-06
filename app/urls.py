@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,MpesaMessagesAPIView, OrganizationGigsAPIView,extract_transaction_code
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,MpesaMessagesAPIView,UserMpesaMessagesAPIView, OrganizationGigsAPIView,extract_transaction_code
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -39,6 +39,7 @@ urlpatterns = [
     path('api/stk-new-push/', STKNewPushView.as_view()),
     path('api/stk-new-callback/', STKNewCallbackView.as_view()),
     path('api/mpesa-messages/', MpesaMessagesAPIView.as_view(), name='mpesa-messages'),
+    path('api/single-messages/', UserMpesaMessagesAPIView.as_view(), name='all-mpesa-messages'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
   

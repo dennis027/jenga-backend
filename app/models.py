@@ -149,6 +149,7 @@ class Organization(models.Model):
 
 
 class MpesaNewTransaction(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     phone_number = models.CharField(max_length=15)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     mpesa_receipt_number = models.CharField(max_length=20, unique=True)  # transaction code
@@ -161,3 +162,14 @@ class MpesaNewTransaction(models.Model):
 
     def __str__(self):
         return f"{self.phone_number} - {self.mpesa_receipt_number}"
+    
+
+class UserPaymentSession(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    phone_number = models.CharField(max_length=15)
+    checkout_request_id = models.CharField(max_length=100, unique=True)
+    merchant_request_id = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.checkout_request_id}"
