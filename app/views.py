@@ -8,21 +8,15 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils.timezone import now
 from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
-from .models import Gig,JobType,Payment,GigHistory, Organization,MpesaNewTransaction,UserPaymentSession
+from .models import Gig,JobType,GigHistory, Organization,MpesaNewTransaction,UserPaymentSession
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Q 
-from .utils import lipa_na_mpesa
-import json
 import logging
 import base64
 from rest_framework.parsers import JSONParser
-from django.utils.dateparse import parse_datetime
 from datetime import datetime
 from django.utils import timezone
-from rest_framework.authentication import TokenAuthentication  # or JWT
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
-import pytz
 import pytesseract
 from PIL import Image
 from django.core.files.storage import default_storage
@@ -30,8 +24,8 @@ from django.http import JsonResponse
 import re
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from decimal import Decimal, InvalidOperation
 from django.conf import settings
+from django.db.models import Q
 
 
 
@@ -245,6 +239,38 @@ class VerifyGigView(APIView):
             "gig_status": "verified",
             "gig": GigSerializer(gig).data
         }, status=status.HTTP_200_OK)
+    
+
+
+#SEARCH GIGS
+
+class GigSearchView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        county = request.query_params.get('county')
+        constituency = request.query_params.get('constituency')
+        ward = request.query_params.get('ward')
+        job_type = request.query_params.get('job_type')  # ID of JobType
+        client_name = request.query_params.get('client_name')
+
+        gigs = Gig.objects.all()
+
+        if county:
+            gigs = gigs.filter(county__icontains=county)
+        if constituency:
+            gigs = gigs.filter(constituency__icontains=constituency)
+        if ward:
+            gigs = gigs.filter(ward__icontains=ward)
+        if job_type:
+            gigs = gigs.filter(job_type_id=job_type)
+        if client_name:
+            gigs = gigs.filter(client_name__icontains=client_name)
+
+        serializer = GigSerializer(gigs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    
     
 
 class GigListView(APIView):
