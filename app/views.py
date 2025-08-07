@@ -2,7 +2,7 @@ import requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import authenticate,get_user_model
-from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer,OrganizationSerializer,UserDetailWithGigsSerializer,MpesaNewTransactionSerializer
+from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer,OrganizationSerializer,UserSerializer,UserDetailWithGigsSerializer,MpesaNewTransactionSerializer
 from rest_framework import status, permissions,generics
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils.timezone import now
@@ -26,6 +26,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.conf import settings
 from django.db.models import Q
+
 
 
 
@@ -65,6 +66,15 @@ class CheckUsernameExists(APIView):
         if User.objects.filter(username__iexact=username).exists():
             return Response({"exists": True, "message": "Username already exists"}, status=200)
         return Response({"exists": False, "message": "Username is available"}, status=400)
+
+
+class UserListAPIView(APIView):
+    permission_classes = [IsAuthenticated]  # Remove if public access is okay
+
+    def get(self, request):
+        users = User.objects.all()
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
 
 
 class CheckPhoneExists(APIView):
@@ -270,7 +280,7 @@ class GigSearchView(APIView):
         serializer = GigSerializer(gigs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    
+
     
 
 class GigListView(APIView):
@@ -653,34 +663,82 @@ class STKNewCallbackView(APIView):
 
 
 class MpesaMessagesAPIView(APIView):
-    permission_classes = [IsAuthenticated]  # Add authentication requirement
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        transactions = MpesaNewTransaction.objects.all().order_by('-transaction_date')
-        
-        serializer = MpesaNewTransactionSerializer(transactions, many=True)  
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        transactions = MpesaNewTransaction.objects.all()
+
+        # Optional filters
+        phone_number = request.query_params.get('phone_number')
+        amount = request.query_params.get('amount')
+        receipt = request.query_params.get('mpesa_receipt_number')
+        date_from = request.query_params.get('date_from')  # format: YYYY-MM-DD
+        date_to = request.query_params.get('date_to')      # format: YYYY-MM-DD
+        user_id = request.query_params.get('user_id')      # filter by specific user (optional)
+
+        if phone_number:
+            transactions = transactions.filter(phone_number=phone_number)
+        if amount:
+            transactions = transactions.filter(amount=amount)
+        if receipt:
+            transactions = transactions.filter(mpesa_receipt_number=receipt)
+        if date_from:
+            transactions = transactions.filter(transaction_date__gte=date_from)
+        if date_to:
+            transactions = transactions.filter(transaction_date__lte=date_to)
+        if user_id:
+            transactions = transactions.filter(user__id=user_id)
+
+        transactions = transactions.order_by('-transaction_date')
+        serializer = MpesaNewTransactionSerializer(transactions, many=True)
+
+        return Response({
+            "count": transactions.count(),
+            "transactions": serializer.data
+        }, status=status.HTTP_200_OK)
     
+
+
 
 
 class UserMpesaMessagesAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # Get transactions for only the logged-in user
-        user_transactions = MpesaNewTransaction.objects.filter(
-            user=request.user
-        ).order_by('-transaction_date')
-        
-        serializer = MpesaNewTransactionSerializer(user_transactions, many=True)
+        transactions = MpesaNewTransaction.objects.filter(user=request.user)
+
+        # Optional filters
+        phone_number = request.query_params.get('phone_number')
+        amount = request.query_params.get('amount')
+        receipt = request.query_params.get('mpesa_receipt_number')
+        date_from = request.query_params.get('date_from')  # format: YYYY-MM-DD
+        date_to = request.query_params.get('date_to')      # format: YYYY-MM-DD
+
+        if phone_number:
+            transactions = transactions.filter(phone_number=phone_number)
+        if amount:
+            transactions = transactions.filter(amount=amount)
+        if receipt:
+            transactions = transactions.filter(mpesa_receipt_number=receipt)
+        if date_from:
+            transactions = transactions.filter(transaction_date__gte=date_from)
+        if date_to:
+            transactions = transactions.filter(transaction_date__lte=date_to)
+
+        transactions = transactions.order_by('-transaction_date')
+        serializer = MpesaNewTransactionSerializer(transactions, many=True)
+
         return Response({
-            "count": user_transactions.count(),
+            "count": transactions.count(),
             "user_id": request.user.id,
             "username": request.user.username,
             "transactions": serializer.data
         }, status=status.HTTP_200_OK)
+    
 
 
+
+    
 ###########################################################################
 ###########################################################################
 ####################END MPESA CIEWS HERE###################################

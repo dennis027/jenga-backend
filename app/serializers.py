@@ -133,3 +133,13 @@ class MpesaNewTransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = MpesaNewTransaction
         fields = '__all__'
+
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'id', 'username', 'full_name', 'email', 'phone', 'account_type',
+            'location', 'national_id', 'profile_pic'
+        ]

@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView, OrganizationGigsAPIView,extract_transaction_code
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView, OrganizationGigsAPIView,extract_transaction_code
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/logout/', LogoutView.as_view(), name='logout'),
     path('api/login-cookie/', CookieLoginView.as_view(), name='login-cookie'),
     path('api/profile/', ProfileUpdateView.as_view(), name='profile-update'),
+    path('api/list-users/', UserListAPIView.as_view(), name='user-list'),
     path('api/gigs/', LogGigView.as_view(), name='log-gig'),
     path('api/gigs/verify/<int:gig_id>/', VerifyGigView.as_view(), name='verify-gig'), 
     path('api/gigs-list/', GigListView.as_view(), name='gig-list'),
