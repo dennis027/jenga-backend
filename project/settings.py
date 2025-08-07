@@ -16,6 +16,19 @@ from datetime import timedelta
 
 import environ
 
+import os
+import dj_database_url
+
+DEBUG = os.getenv("DEBUG", "False") == "True"
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
+ALLOWED_HOSTS = ["your-service-name.onrender.com", "localhost"]
+
+DATABASES = {
+    "default": dj_database_url.config(
+        default=os.getenv("DATABASE_URL")
+    )
+}
+
 env = environ.Env()
 environ.Env.read_env()
 
@@ -59,6 +72,8 @@ SIMPLE_JWT = {
 }
 
 MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -188,3 +203,7 @@ MPESA_SHORTCODE = config('MPESA_SHORTCODE')
 MPESA_PASSKEY = config('MPESA_PASSKEY')
 MPESA_BASE_URL = "https://sandbox.safaricom.co.ke" 
 MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL')
+
+
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
