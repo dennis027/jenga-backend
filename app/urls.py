@@ -2,8 +2,8 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView, OrganizationGigsAPIView,extract_transaction_code
-
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView, OrganizationGigsAPIView,extract_transaction_code
+from . import views
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.decorators.csrf import csrf_exempt
@@ -13,6 +13,10 @@ urlpatterns = [
     path('api/login/', LoginView.as_view(), name='login'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/logout/', LogoutView.as_view(), name='logout'),
+    path('api/request-password-reset/', RequestPasswordResetView.as_view()),
+    path('api/password-reset/verify/', VerifyResetCodeView.as_view()),
+    path('api/password-reset/confirm/', ConfirmResetPasswordView.as_view()),
+    path('api/csrf-token/', views.csrf_token_view, name='csrf_token'),
     path('api/login-cookie/', CookieLoginView.as_view(), name='login-cookie'),
     path('api/profile/', ProfileUpdateView.as_view(), name='profile-update'),
     path('api/list-users/', UserListAPIView.as_view(), name='user-list'),

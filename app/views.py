@@ -26,6 +26,13 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.conf import settings
 from django.db.models import Q
+import random
+from django.core.mail import send_mail
+from .models import PasswordResetCode
+from django.middleware.csrf import get_token
+from django.http import JsonResponse
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_http_methods
 
 
 
@@ -149,6 +156,111 @@ class LogoutView(APIView):
         except TokenError:
             return Response({"detail": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST)
         
+
+# password reset code generation
+class RequestPasswordResetView(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        email = request.data.get('email')
+        if not email:
+            return Response({"error": "Email is required"}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Don't reveal if user exists (security)
+            return Response({"message": "If this email exists, a reset code has been sent."})
+
+        # Generate a 6-digit code
+        code = str(random.randint(100000, 999999))
+        PasswordResetCode.objects.create(user=user, code=code)
+
+        send_mail(
+            subject="Your Password Reset Code",
+            message=f"Your password reset code is: {code}\nThis code will expire in 30 minutes.",
+            from_email=None,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+
+        return Response({"message": "If this email exists, a reset code has been sent."})
+    
+@ensure_csrf_cookie
+@require_http_methods(["GET"])
+def csrf_token_view(request):
+    return JsonResponse({'csrf_token': get_token(request)})
+    
+@method_decorator(csrf_exempt, name='dispatch')
+class VerifyResetCodeView(APIView):
+    authentication_classes = []  # Disable DRF authentication
+    permission_classes = []      # Disable DRF permissions
+    
+    def post(self, request):
+        email = request.data.get('email')
+        code = request.data.get('code')
+
+        if not email or not code:
+            return Response({"error": "Email and code are required"}, status=400)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid email or code"}, status=400)
+
+        try:
+            reset_code = PasswordResetCode.objects.filter(
+                user=user, code=code
+            ).latest('created_at')
+        except PasswordResetCode.DoesNotExist:
+            return Response({"error": "Invalid code"}, status=400)
+
+        if reset_code.is_expired():
+            return Response({"error": "Code expired"}, status=400)
+
+        return Response({"message": "Code is valid"}, status=200)
+
+        
+class ConfirmResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email')
+        code = request.data.get('code')
+        new_password = request.data.get('new_password')
+        reset_password = request.data.get('reset_password')  # confirm password
+
+        # Check all required fields
+        if not all([email, code, new_password, reset_password]):
+            return Response({"error": "Email, code, new_password, and reset_password are required"}, status=400)
+
+        # Check if passwords match
+        if new_password != reset_password:
+            return Response({"error": "Passwords do not match"}, status=400)
+
+        # Check if user exists
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "Invalid email or code"}, status=400)
+
+        # Check if code exists
+        try:
+            reset_code = PasswordResetCode.objects.filter(user=user, code=code).latest('created_at')
+        except PasswordResetCode.DoesNotExist:
+            return Response({"error": "Invalid code"}, status=400)
+
+        # Check if code expired
+        if reset_code.is_expired():
+            return Response({"error": "Code expired"}, status=400)
+
+        # Reset password
+        user.set_password(new_password)
+        user.save()
+
+        # Remove the code after successful reset
+        reset_code.delete()
+
+        return Response({"message": "Password reset successful"})
 
 
 

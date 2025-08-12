@@ -3,6 +3,9 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
 import datetime
+import uuid
+from django.utils import timezone
+from datetime import timedelta
 
 
 class User(AbstractUser):
@@ -17,6 +20,21 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, unique=True, blank=False)  
     email = models.EmailField(unique=True, blank=False) 
     profile_pic = models.ImageField(upload_to='MEDIA/profiles/', blank=True, null=True)
+
+
+class PasswordResetCode(models.Model):  #password reset
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    code = models.CharField(max_length=6)  # 6-digit code
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(minutes=30)  # valid 10 min
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        return timezone.now() > self.expires_at
 
 
 class JobType(models.Model):

@@ -210,5 +210,19 @@ MPESA_BASE_URL = "https://sandbox.safaricom.co.ke"
 MPESA_CALLBACK_URL = config('MPESA_CALLBACK_URL')
 
 
+
+EMAIL_BACKEND = config("EMAIL_BACKEND")
+EMAIL_HOST = config("EMAIL_HOST")
+EMAIL_PORT = int(config("EMAIL_PORT"))
+EMAIL_USE_TLS = config("EMAIL_USE_TLS") == "True"
+EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL")
+
+
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+
+CORS_ALLOW_ALL_ORIGINS = True  # or explicitly list your Flutter dev URL
+CORS_ALLOW_CREDENTIALS = True
