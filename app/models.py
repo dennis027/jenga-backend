@@ -20,7 +20,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, unique=True, blank=True,null=True)  
     email = models.EmailField(unique=True, blank=False) 
     profile_pic = models.ImageField(upload_to='MEDIA/profiles/', blank=True, null=True)
-    is_active = models.BooleanField(default=False)
+    is_verified = models.BooleanField(default=False)
 
 
 class PasswordResetCode(models.Model):  #password reset

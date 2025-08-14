@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView,ResendVerificationEmailView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
@@ -11,6 +11,7 @@ from django.views.generic import TemplateView
 urlpatterns = [
     path('api/register/', RegisterView.as_view(), name='register'),
     path('api/activate/<uidb64>/<token>/', ActivateAccountAPIView.as_view(), name='activate'),
+    path('api/resend-verification/', ResendVerificationEmailView.as_view(), name='resend-verification'),
     path('activation-success/', activation_success_view, name='activation-success'),
     path('activation-failed/', activation_failed_view, name='activation-failed'),
     path('api/login/', LoginView.as_view(), name='login'),

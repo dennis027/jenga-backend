@@ -109,7 +109,7 @@ class RegisterView(APIView):
         print(request.data)  # Debugging line to check incoming data
         if serializer.is_valid():
             user = serializer.save()
-            user.is_active = False
+            user.is_verified = False
             user.save()
 
             uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
@@ -147,7 +147,7 @@ class ActivateAccountAPIView(APIView):
             return Response({"error": "Invalid link"}, status=400)
 
         if default_token_generator.check_token(user, token):
-            user.is_active = True
+            user.is_verified = True
             user.save()
             # return Response({"message": "Account activated successfully"})
             request.session['activation_done'] = True 
@@ -157,6 +157,42 @@ class ActivateAccountAPIView(APIView):
             request.session['activation_done'] = True 
             return redirect('/activation-failed/')
         
+        
+        
+class ResendVerificationEmailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        # Check if already verified
+        if user.is_verified:
+            return Response({"message": "Your account is already verified."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Generate new token and link
+        uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        activation_link = request.build_absolute_uri(
+            reverse('activate', kwargs={'uidb64': uidb64, 'token': token})
+        )
+
+        subject = "Activate Your Account"
+        html_content = render_to_string('activation/activation_email.html', {
+            'username': user.username,
+            'activation_link': activation_link
+        })
+
+        try:
+            send_mail(subject, '', settings.DEFAULT_FROM_EMAIL, [user.email], html_message=html_content)
+        except Exception as e:
+            return Response({"error": f"Failed to send activation email: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({"message": "Verification email sent. Please check your inbox."},
+                        status=status.HTTP_200_OK)
+
+
+
 
 def activation_success_view(request):
     if request.session.pop('activation_done', None):  # remove flag after use

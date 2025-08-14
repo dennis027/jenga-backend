@@ -64,7 +64,7 @@ class GigSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'email', 'phone', 'full_name', 'national_id', 'location', 'profile_pic']  # include other editable fields
+        fields = ['username', 'email', 'phone', 'full_name', 'national_id', 'location', 'profile_pic','is_verified']  # include other editable fields
 
     def validate_phone(self, value):
         user = self.instance  # the currently authenticated user
