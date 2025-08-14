@@ -226,3 +226,6 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 CORS_ALLOW_ALL_ORIGINS = True  # or explicitly list your Flutter dev URL
 CORS_ALLOW_CREDENTIALS = True
+
+
+FRONTEND_APP_URL='http://127.0.0.1:8000'

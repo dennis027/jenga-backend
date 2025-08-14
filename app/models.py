@@ -17,9 +17,10 @@ class User(AbstractUser):
     full_name = models.CharField(max_length=100, blank=True)
     national_id = models.CharField(max_length=30, blank=True)
     location = models.CharField(max_length=100, blank=True)
-    phone = models.CharField(max_length=20, unique=True, blank=False)  
+    phone = models.CharField(max_length=20, unique=True, blank=True,null=True)  
     email = models.EmailField(unique=True, blank=False) 
     profile_pic = models.ImageField(upload_to='MEDIA/profiles/', blank=True, null=True)
+    is_active = models.BooleanField(default=False)
 
 
 class PasswordResetCode(models.Model):  #password reset

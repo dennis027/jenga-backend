@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activate Your Account</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 0; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" style="width: 100%; max-width: 600px; background: white; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden;">
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+                            <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+                                <span style="font-size: 36px; color: white;">🚀</span>
+                            </div>
+                            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">Welcome Aboard!</h1>
+                            <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 16px;">Just one more step to get started</p>
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td style="padding: 50px 40px;">
+                            <h2 style="color: #2d3748;">Hi {{ username }},</h2>
+                            <p style="color: #4a5568;">
+                                Thanks for joining us! Please activate your account by clicking the button below.
+                            </p>
+                            
+                            <table role="presentation" style="margin: 35px 0;">
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <a href="{{ activation_link }}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 16px 32px; border-radius: 50px; font-weight: 600;">
+                                            ✨ Activate My Account
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <p style="color: #718096;">
+                                If the button doesn't work, copy and paste this link: <br>
+                                <span style="color: #667eea;">{{ activation_link }}</span>
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td style="background: #f8fafc; padding: 30px 40px; text-align: center;">
+                            <p style="color: #718096;">Need help? <a href="mailto:support@yourapp.com" style="color: #667eea;">Contact support</a></p>
+                            <p style="color: #a0aec0;">© 2025 Your App Name. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

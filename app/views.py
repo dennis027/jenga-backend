@@ -1,3 +1,4 @@
+from django.shortcuts import redirect,render
 import requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -33,7 +34,12 @@ from django.middleware.csrf import get_token
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
-
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode
+from django.urls import reverse
+from django.template.loader import render_to_string
 
 
 
@@ -52,7 +58,7 @@ User = get_user_model()
 
 
 class CheckEmailExists(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny] 
     def get(self, request):
         email = request.query_params.get('email')
         if not email:
@@ -95,20 +101,73 @@ class CheckPhoneExists(APIView):
             return Response({"exists": True, "message": "Phone number already exists"}, status=200)
         return Response({"exists": False, "message": "Phone number is available"}, status=400)
 
-
 class RegisterView(APIView):
     permission_classes = []
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
+        print(request.data)  # Debugging line to check incoming data
         if serializer.is_valid():
             user = serializer.save()
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }, status=status.HTTP_201_CREATED)
+            user.is_active = False
+            user.save()
+
+            uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            activation_link = request.build_absolute_uri(
+                reverse('activate', kwargs={'uidb64': uidb64, 'token': token})
+            )
+
+            subject = "Activate Your Account"
+            html_content = render_to_string('activation/activation_email.html', {
+                'username': user.username,
+                'activation_link': activation_link
+            })
+
+            try:
+                send_mail(subject, '', settings.DEFAULT_FROM_EMAIL, [user.email], html_message=html_content)
+            except Exception as e:
+                return Response({"error": f"Failed to send activation email: {str(e)}"},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            return Response({"message": "Registration successful. Please check your email to activate your account."},
+                            status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ActivateAccountAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, uidb64, token):
+        try:
+            user_id = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=user_id)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({"error": "Invalid link"}, status=400)
+
+        if default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            # return Response({"message": "Account activated successfully"})
+            request.session['activation_done'] = True 
+            return redirect('/activation-success/')
+        else:
+            # return Response({"error": "Invalid or expired token"}, status=400)
+            request.session['activation_done'] = True 
+            return redirect('/activation-failed/')
+        
+
+def activation_success_view(request):
+    if request.session.pop('activation_done', None):  # remove flag after use
+        return render(request, 'activation/activation_success.html')
+    return redirect('/')  # or 404 page
+
+
+def activation_failed_view(request):
+    if request.session.pop('activation_done', None):
+        return render(request, 'activation/activation_failed.html')
+    return redirect('/')
 
 
 

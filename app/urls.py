@@ -2,14 +2,17 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView, OrganizationGigsAPIView,extract_transaction_code
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import TemplateView
 
 urlpatterns = [
     path('api/register/', RegisterView.as_view(), name='register'),
+    path('api/activate/<uidb64>/<token>/', ActivateAccountAPIView.as_view(), name='activate'),
+    path('activation-success/', activation_success_view, name='activation-success'),
+    path('activation-failed/', activation_failed_view, name='activation-failed'),
     path('api/login/', LoginView.as_view(), name='login'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/logout/', LogoutView.as_view(), name='logout'),
@@ -29,7 +32,7 @@ urlpatterns = [
     path('api/user-gigs/', LoggedByUserGigListView.as_view(), name='user-gigs'),
     path('api/search-gigs/', GigSearchView.as_view(), name='search-gigs'),
     path('api/upload-payment/', PaymentUploadView.as_view(), name='upload_payment'),
-    path('api/work-history/', GigHistoryView.as_view(), name='work-history'),
+    path('api/work-history/', GigHistoryView.as_view(), name='work-history'), 
     path('api/user-work-history/', UserGigHistoryView.as_view(), name='my-work-history'),
     path('api/check-email/', CheckEmailExists.as_view(), name='check-email'),
     path('api/check-username/', CheckUsernameExists.as_view(), name='check-username'),

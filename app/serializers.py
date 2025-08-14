@@ -10,16 +10,11 @@ User = get_user_model()
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'email', 'phone', 'password', 'account_type', 'full_name', 'national_id', 'location']
+        fields = ['username', 'email', 'password', 'account_type', 'full_name', 'national_id', 'location']  
 
     def validate_email(self, value):
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError("Email already in use.")
-        return value
-
-    def validate_phone(self, value):
-        if User.objects.filter(phone__iexact=value).exists():
-            raise serializers.ValidationError("Phone number already in use.")
         return value
 
     def validate_username(self, value):
@@ -33,7 +28,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
-    
 
 
 class LoginSerializer(serializers.Serializer):
