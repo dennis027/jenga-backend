@@ -9,7 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils.timezone import now
 from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
-from .models import Gig,JobType,GigHistory, Organization,MpesaNewTransaction,UserPaymentSession
+from .models import Gig,JobType,GigHistory, Organization,MpesaNewTransaction,UserPaymentSession,PhoneOTP
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Q 
 import logging
@@ -40,6 +40,12 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode
 from django.urls import reverse
 from django.template.loader import render_to_string
+from .afritesting import send_sms
+import africastalking
+from django.views import View
+
+import json
+
 
 
 
@@ -951,3 +957,123 @@ class UserMpesaMessagesAPIView(APIView):
 ####################END MPESA CIEWS HERE###################################
 ###########################################################################
 ###########################################################################
+
+
+
+
+# class SendOTPView(APIView):
+#     def post(self, request):
+#         phone = request.data.get("phone")
+#         if not phone:
+#             return Response({"error": "Phone number is required"}, status=400)
+
+#         # Generate OTP
+#         otp = str(random.randint(100000, 999999))
+
+#         # Save to DB
+#         PhoneOTP.objects.create(phone=phone, code=otp)
+
+#         # Send SMS
+#         send_sms(phone, f"Your OTP is {otp}")
+
+#         return Response({"message": "OTP sent successfully"})
+
+# class VerifyOTPView(APIView):
+#     def post(self, request):
+#         phone = request.data.get("phone")
+#         code = request.data.get("code")
+
+#         try:
+#             otp_entry = PhoneOTP.objects.filter(phone=phone, code=code).latest('created_at')
+#         except PhoneOTP.DoesNotExist:
+#             return Response({"error": "Invalid OTP"}, status=400)
+
+#         if otp_entry.is_expired():
+#             return Response({"error": "OTP expired"}, status=400)
+
+#         return Response({"message": "OTP verified successfully"})
+    
+
+
+username = settings.AT_USERNAME
+api_key = settings.AT_API_KEY  
+africastalking.initialize(username, api_key)
+sms = africastalking.SMS
+@method_decorator(csrf_exempt, name='dispatch')
+class SendOTPView(View):
+    def post(self, request):
+        try:
+            # Parse JSON data from request body
+            data = json.loads(request.body)
+            phone_number = data.get("phone")
+        except json.JSONDecodeError:
+            # Fallback to form data if JSON parsing fails
+            phone_number = request.POST.get("phone")
+
+        if not phone_number:
+            return JsonResponse({"status": "error", "message": "Phone number is required"}, status=400)
+
+        # Generate a 6-digit OTP
+        otp = str(random.randint(100000, 999999))
+        message = f"Your Jenga Pro verification code is {otp}"
+
+        try:
+            # Send SMS to the real phone number
+            response = sms.send(
+                message,
+                [phone_number],
+                # Try without sender_id first, or use an approved one
+                # sender_id="JENGAPRO"  # Comment this out temporarily
+            )
+            
+            # Log the full response for debugging
+            logger.info(f"Africa's Talking Response: {response}")
+            print(f"Full AT Response: {response}")  # For immediate debugging
+            
+            # Parse the response to get more details
+            sms_data = response.get('SMSMessageData', {})
+            recipients = sms_data.get('Recipients', [])
+            
+            if recipients:
+                recipient = recipients[0]
+                status_code = recipient.get('statusCode')
+                status = recipient.get('status')
+                message_id = recipient.get('messageId')
+                cost = recipient.get('cost')
+                
+                # Log recipient details
+                logger.info(f"Status Code: {status_code}, Status: {status}, MessageID: {message_id}, Cost: {cost}")
+                
+                return JsonResponse({
+                    "status": "success",
+                    "otp": otp,
+                    "at_response": response,
+                    "recipient_status": status,
+                    "status_code": status_code,
+                    "message_id": message_id,
+                    "cost": cost,
+                    "debug_info": {
+                        "phone_number": phone_number,
+                        "message_length": len(message),
+                        "username": username,
+                        "has_sender_id": False  # Set to True if using sender_id
+                    }
+                })
+            else:
+                return JsonResponse({
+                    "status": "error", 
+                    "message": "No recipient data in response",
+                    "at_response": response
+                }, status=500)
+                
+        except Exception as e:
+            logger.error(f"SMS sending failed: {str(e)}")
+            return JsonResponse({
+                "status": "error", 
+                "message": str(e),
+                "debug_info": {
+                    "phone_number": phone_number,
+                    "username": username,
+                    "message": message
+                }
+            }, status=500)

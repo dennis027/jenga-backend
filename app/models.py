@@ -23,6 +23,17 @@ class User(AbstractUser):
     email = models.EmailField(unique=True, blank=False)
     profile_pic = models.ImageField(upload_to='MEDIA/profiles/', blank=True, null=True)
     is_verified = models.BooleanField(default=False)
+    
+
+
+
+class PhoneOTP(models.Model):
+    phone = models.CharField(max_length=20)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_expired(self):
+        return timezone.now() > self.created_at + timedelta(minutes=5)
 
 
 class PasswordResetCode(models.Model):  #password reset

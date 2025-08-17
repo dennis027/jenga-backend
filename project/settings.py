@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 from decouple import config 
 from datetime import timedelta
-
+import africastalking
 import environ
 
 import os
@@ -229,3 +229,17 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 FRONTEND_APP_URL='http://127.0.0.1:8000'
+
+
+
+AT_USERNAME = config("AT_USERNAME")   # sandbox or live username
+AT_API_KEY  = config("AT_API_KEY")
+africastalking.initialize(AT_USERNAME, AT_API_KEY)
+
+sms = africastalking.SMS
+response = sms.send(
+    message='Your OTP is 123456', 
+    recipients=['+254799157137'],        # Kenyan number
+    sender_id=None,                      # use default or your registered sender ID
+    enqueue=False
+)
