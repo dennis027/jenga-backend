@@ -23,7 +23,16 @@ class User(AbstractUser):
     email = models.EmailField(unique=True, blank=False)
     profile_pic = models.ImageField(upload_to='MEDIA/profiles/', blank=True, null=True)
     is_verified = models.BooleanField(default=False)
+    credit_score = models.PositiveIntegerField(default=0)
     
+
+    def increase_score(self, points):
+        """Increase score by points, capped at 100""" 
+        self.credit_score = min(100, self.credit_score + points)
+        self.save()
+
+    def __str__(self):
+        return f"{self.username} - Score: {self.credit_score}"
 
 
 
@@ -99,6 +108,9 @@ class Gig(models.Model):
     organization = models.ForeignKey('Organization', on_delete=models.CASCADE, related_name='gigs')
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+    is_complete = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.worker.username} - {self.job_type.name} - {self.start_date}"

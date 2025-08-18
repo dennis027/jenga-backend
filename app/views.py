@@ -443,9 +443,11 @@ class VerifyGigView(APIView):
         except Gig.DoesNotExist:
             return Response({"detail": "Gig not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        # Prevent self-verification
         if gig.logged_by == request.user:
             return Response({"detail": "You cannot verify your own gig."}, status=status.HTTP_403_FORBIDDEN)
 
+        # Prevent double verification
         if gig.is_verified:
             return Response({
                 "message": "Gig already verified.",
@@ -453,16 +455,70 @@ class VerifyGigView(APIView):
                 "gig": GigSerializer(gig).data
             })
 
+        # Mark gig as verified
         gig.is_verified = True
         gig.verified_by = request.user
         gig.save()
 
+        # ✅ Update worker's credit score (using User model)
+        worker = gig.logged_by
+        if hasattr(worker, "credit_score"):  # Ensure the field exists
+            worker.credit_score = worker.credit_score + 5  # Increase score
+            worker.save()
+
         return Response({
             "message": "Gig verified successfully.",
             "gig_status": "verified",
-            "gig": GigSerializer(gig).data
+            "gig": GigSerializer(gig).data,
+            "worker_credit_score": worker.credit_score
         }, status=status.HTTP_200_OK)
+
+
+# verify gigs
     
+class CompleteGigAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, gig_id):
+        try:
+            gig = Gig.objects.get(id=gig_id)
+        except Gig.DoesNotExist:
+            return Response({"error": "Gig not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not gig.is_verified:
+            return Response({"error": "Gig must be verified before marking as complete"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create history record
+        gig_history = GigHistory.objects.create(
+            worker=gig.worker,
+            job_type=gig.job_type,
+            start_date=gig.start_date,
+            duration_value=gig.duration_value,
+            duration_unit=gig.duration_unit,
+            client_name=gig.client_name,
+            client_phone=gig.client_phone,
+            county=gig.county,
+            constituency=gig.constituency,
+            ward=gig.ward,
+            is_verified=gig.is_verified,
+        )
+
+        # Update credit score (+10 on completion) directly on User model
+        worker = gig.worker  # this is already a User
+        worker.credit_score = (worker.credit_score or 0) + 10
+        worker.save()
+
+        # Delete gig after moving
+        gig.delete()
+
+        return Response(
+            {
+                "message": "Gig moved to history successfully",
+                "history_id": gig_history.id,
+                "new_score": worker.credit_score,
+            },
+            status=status.HTTP_200_OK
+        )
 
 
 #SEARCH GIGS
@@ -556,13 +612,14 @@ class PaymentUploadView(APIView):
 class GigHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        serializer = GigHistorySerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(worker=request.user)  # attach the logged-in user
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get(self, request):
+        # get only history belonging to the logged-in user
+        histories = GigHistory.objects.filter(worker=request.user).order_by('-created_at')
+        serializer = GigHistorySerializer(histories, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
+
+
 # single organization gigs view
 class OrganizationGigsAPIView(APIView):
     permission_classes = [IsAuthenticated]

@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView,ResendVerificationEmailView,SendOTPView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  
+from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView,ResendVerificationEmailView,SendOTPView,CompleteGigAPIView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
@@ -27,6 +27,7 @@ urlpatterns = [
     path('api/list-users/', UserListAPIView.as_view(), name='user-list'),
     path('api/gigs/', LogGigView.as_view(), name='log-gig'),
     path('api/gigs/verify/<int:gig_id>/', VerifyGigView.as_view(), name='verify-gig'), 
+    path('gigs/<int:gig_id>/complete/', CompleteGigAPIView.as_view(), name='complete-gig'),
     path('api/gigs-list/', GigListView.as_view(), name='gig-list'),
     path('api/user/', UserProfileView.as_view(), name='user-profile'), 
     path('api/job-types/', JobTypeListCreateView.as_view(), name='list_create_job_types'),
@@ -34,7 +35,6 @@ urlpatterns = [
     path('api/user-gigs/', LoggedByUserGigListView.as_view(), name='user-gigs'),
     path('api/search-gigs/', GigSearchView.as_view(), name='search-gigs'),
     path('api/upload-payment/', PaymentUploadView.as_view(), name='upload_payment'),
-    path('api/work-history/', GigHistoryView.as_view(), name='work-history'), 
     path('api/user-work-history/', UserGigHistoryView.as_view(), name='my-work-history'),
     path('api/check-email/', CheckEmailExists.as_view(), name='check-email'),
     path('api/check-username/', CheckUsernameExists.as_view(), name='check-username'),
