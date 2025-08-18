@@ -3,13 +3,13 @@ import requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import authenticate,get_user_model
-from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer,OrganizationSerializer,UserSerializer,UserDetailWithGigsSerializer,MpesaNewTransactionSerializer
+from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer,OrganizationSerializer,UserSerializer,UserDetailWithGigsSerializer,MpesaNewTransactionSerializer, VerificationRequestSerializer,  WeeklyWorkerReportSerializer,WeeklyGigReportSerializer,JobTypeDistributionSerializer,OrgPerformanceSerializer,VerificationImpactSerializer
 from rest_framework import status, permissions,generics
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils.timezone import now
 from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
-from .models import Gig,JobType,GigHistory, Organization,MpesaNewTransaction,UserPaymentSession,PhoneOTP
+from .models import Gig,JobType,GigHistory, Organization,MpesaNewTransaction,UserPaymentSession,PhoneOTP, VerificationRequest
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Q 
 import logging
@@ -27,7 +27,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.conf import settings
 from django.db.models import Q
-import random
+import random  
 from django.core.mail import send_mail
 from .models import PasswordResetCode
 from django.middleware.csrf import get_token
@@ -43,8 +43,10 @@ from django.template.loader import render_to_string
 from .afritesting import send_sms
 import africastalking
 from django.views import View
-
 import json
+import datetime
+from django.db.models import Count, Q, Avg
+from django.db.models.functions import ExtractWeek, ExtractYear
 
 
 
@@ -1016,42 +1018,6 @@ class UserMpesaMessagesAPIView(APIView):
 ###########################################################################
 
 
-
-
-# class SendOTPView(APIView):
-#     def post(self, request):
-#         phone = request.data.get("phone")
-#         if not phone:
-#             return Response({"error": "Phone number is required"}, status=400)
-
-#         # Generate OTP
-#         otp = str(random.randint(100000, 999999))
-
-#         # Save to DB
-#         PhoneOTP.objects.create(phone=phone, code=otp)
-
-#         # Send SMS
-#         send_sms(phone, f"Your OTP is {otp}")
-
-#         return Response({"message": "OTP sent successfully"})
-
-# class VerifyOTPView(APIView):
-#     def post(self, request):
-#         phone = request.data.get("phone")
-#         code = request.data.get("code")
-
-#         try:
-#             otp_entry = PhoneOTP.objects.filter(phone=phone, code=code).latest('created_at')
-#         except PhoneOTP.DoesNotExist:
-#             return Response({"error": "Invalid OTP"}, status=400)
-
-#         if otp_entry.is_expired():
-#             return Response({"error": "OTP expired"}, status=400)
-
-#         return Response({"message": "OTP verified successfully"})
-    
-
-
 username = settings.AT_USERNAME
 api_key = settings.AT_API_KEY  
 africastalking.initialize(username, api_key)
@@ -1134,3 +1100,221 @@ class SendOTPView(View):
                     "message": message
                 }
             }, status=500)
+        
+
+
+
+
+
+
+# 1. Submit Verification (User uploads ID front, back, selfie)
+class VerificationRequestCreateView(generics.CreateAPIView):
+    serializer_class = VerificationRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        request = serializer.save(user=self.request.user)
+        # link to user
+        self.request.user.current_verification = request
+        self.request.user.save()
+
+
+# 2. Approve/Reject Verification (Admin only)
+from rest_framework.views import APIView
+
+class VerificationActionView(APIView):
+    # permission_classes = [permissions.IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        """Approve or Reject verification"""
+        try:
+            verification = VerificationRequest.objects.get(pk=pk)
+        except VerificationRequest.DoesNotExist:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        action = request.data.get("action")
+        reason = request.data.get("reason", "")
+
+        if action == "approve":
+            verification.status = "approved"
+            verification.user.is_verified = True
+            verification.user.increase_score(20)  # e.g. +20 on approval
+            verification.user.save()
+
+        elif action == "reject":
+            verification.status = "rejected"
+            verification.rejection_reason = reason
+            verification.user.is_verified = False
+            verification.user.save()
+
+        else:
+            return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
+
+        verification.save()
+        return Response(VerificationRequestSerializer(verification).data)
+
+
+# 3. View Verifications
+class VerificationRequestListView(generics.ListAPIView):
+    serializer_class = VerificationRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:  # Admin can see all
+            return VerificationRequest.objects.all()
+        return VerificationRequest.objects.filter(user=user)
+
+# user view for latest verification
+class LatestVerificationView(generics.RetrieveAPIView):
+
+
+    serializer_class = VerificationRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        latest_verification = (
+            VerificationRequest.objects.filter(user=request.user)
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not latest_verification:
+            return Response({"detail": "No verification found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.get_serializer(latest_verification)
+        return Response(serializer.data)
+    
+
+
+
+
+############################################
+
+############################################
+###############REPORTS VIEWS################
+############################################
+############################################
+
+
+
+# 1. Weekly Worker Report
+class WeeklyWorkerReportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = (
+            Gig.objects
+            .annotate(year=ExtractYear("created_at"), week=ExtractWeek("created_at"))
+            .values("year", "week")
+            .annotate(
+                total_workers=Count("worker", distinct=True),
+                verified_workers=Count("worker", distinct=True, filter=Q(worker__is_verified=True)),
+                unverified_workers=Count("worker", distinct=True, filter=Q(worker__is_verified=False)),
+            )
+            .order_by("-year", "-week")
+        )
+        data = [
+            {
+                "week": f"{row['year']}-W{row['week']}",
+                "total_workers": row["total_workers"],
+                "verified_workers": row["verified_workers"],
+                "unverified_workers": row["unverified_workers"],
+            }
+            for row in qs
+        ]
+        return Response(WeeklyWorkerReportSerializer(data, many=True).data)
+
+
+# 2. Weekly Gigs Report
+class WeeklyGigReportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = (
+            Gig.objects
+            .annotate(year=ExtractYear("created_at"), week=ExtractWeek("created_at"))
+            .values("year", "week")
+            .annotate(
+                total_gigs=Count("id"),
+                verified=Count("id", filter=Q(is_verified=True)),
+                unverified=Count("id", filter=Q(is_verified=False)),
+            )
+            .order_by("-year", "-week")
+        )
+        data = [
+            {
+                "week": f"{row['year']}-W{row['week']}",
+                "total_gigs": row["total_gigs"],
+                "verified": row["verified"],
+                "unverified": row["unverified"],
+            }
+            for row in qs
+        ]
+        return Response(WeeklyGigReportSerializer(data, many=True).data)
+
+
+# 3. Job Type Distribution Report
+class JobTypeDistributionReportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = (
+            Gig.objects
+            .annotate(year=ExtractYear("created_at"), week=ExtractWeek("created_at"))
+            .values("year", "week", "job_type__name")
+            .annotate(count=Count("id"))
+            .order_by("-year", "-week", "-count")
+        )
+        data = [
+            {
+                "week": f"{row['year']}-W{row['week']}",
+                "job_type": row["job_type__name"],
+                "count": row["count"],
+            }
+            for row in qs
+        ]
+        return Response(JobTypeDistributionSerializer(data, many=True).data)
+
+
+# 4. Organization Performance Report
+class OrgPerformanceReportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = (
+            Gig.objects
+            .values("organization__name")
+            .annotate(
+                total_gigs=Count("id"),
+                verified=Count("id", filter=Q(is_verified=True)),
+            )
+            .order_by("-total_gigs")
+        )
+        data = [
+            {
+                "organization": row["organization__name"],
+                "total_gigs": row["total_gigs"],
+                "verified": row["verified"],
+            }
+            for row in qs
+        ]
+        return Response(OrgPerformanceSerializer(data, many=True).data)
+
+
+# 5. Verification Impact Report
+class VerificationImpactReportView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        verified_workers = User.objects.filter(is_verified=True).annotate(gig_count=Count("gigs"))
+        unverified_workers = User.objects.filter(is_verified=False).annotate(gig_count=Count("gigs"))
+
+        data = {
+            "verified_workers_count": verified_workers.count(),
+            "verified_avg_gigs": verified_workers.aggregate(avg=Avg("gig_count"))["avg"] or 0,
+            "unverified_workers_count": unverified_workers.count(),
+            "unverified_avg_gigs": unverified_workers.aggregate(avg=Avg("gig_count"))["avg"] or 0,
+        }
+        return Response(VerificationImpactSerializer(data).data)

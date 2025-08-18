@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView,ResendVerificationEmailView,SendOTPView,CompleteGigAPIView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  
+from .views import LatestVerificationView, RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, VerificationActionView, VerificationRequestCreateView, VerificationRequestListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView,ResendVerificationEmailView,SendOTPView,CompleteGigAPIView,WeeklyWorkerReportView,WeeklyGigReportView,JobTypeDistributionReportView,OrgPerformanceReportView, VerificationImpactReportView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
@@ -46,12 +46,28 @@ urlpatterns = [
     path('api/workers/search/', WorkerSearchAPIView.as_view(), name='worker-search'),
     path('api/extract-code/', extract_transaction_code, name='extract_code'),  
 
+    # ID VERIFICATION
+    path("api/verification/submit/", VerificationRequestCreateView.as_view(), name="verification-submit"),
+    path("api/verification/<int:pk>/action/", VerificationActionView.as_view(), name="verification-action"),
+    path("api/verification/list/", VerificationRequestListView.as_view(), name="verification-list"),
+    path("api/verification/latest/", LatestVerificationView.as_view(), name="verification-latest"),
+
 
     #mpesa view
     path('api/stk-new-push/', STKNewPushView.as_view()),
     path('api/stk-new-callback/', STKNewCallbackView.as_view()),
     path('api/mpesa-messages/', MpesaMessagesAPIView.as_view(), name='mpesa-messages'),
     path('api/single-messages/', UserMpesaMessagesAPIView.as_view(), name='all-mpesa-messages'),
+
+
+
+    # many reports
+    path("api/reports/weekly-workers/", WeeklyWorkerReportView.as_view(), name="weekly-workers-report"),
+    path("api/reports/weekly-gigs/", WeeklyGigReportView.as_view(), name="weekly-gigs-report"),
+    path("api/reports/job-type-distribution/", JobTypeDistributionReportView.as_view(), name="job-type-distribution"),
+    path("api/reports/org-performance/", OrgPerformanceReportView.as_view(), name="org-performance"),
+    path("api/reports/verification-impact/", VerificationImpactReportView.as_view(), name="verification-impact"),
+
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
   

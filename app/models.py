@@ -24,6 +24,13 @@ class User(AbstractUser):
     profile_pic = models.ImageField(upload_to='MEDIA/profiles/', blank=True, null=True)
     is_verified = models.BooleanField(default=False)
     credit_score = models.PositiveIntegerField(default=0)
+    current_verification = models.OneToOneField(
+        "VerificationRequest",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="active_for_user"
+    )
     
 
     def increase_score(self, points):
@@ -33,6 +40,30 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} - Score: {self.credit_score}"
+    
+
+  #verify ID  
+class VerificationRequest(models.Model):
+    STATUS_CHOICES = (
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="verification_requests")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
+
+    # Uploaded docs
+    id_front = models.ImageField(upload_to="MEDIA/verifications/id_front/")
+    id_back = models.ImageField(upload_to="MEDIA/verifications/id_back/", blank=True, null=True)
+    selfie = models.ImageField(upload_to="MEDIA/verifications/selfies/", blank=True, null=True)
+
+    rejection_reason = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"VerificationRequest({self.user.username}, {self.status})"
 
 
 

@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken  
-from .models import  User,Gig,JobType,Payment,GigHistory,Organization,MpesaNewTransaction  # use your custom user model
+from .models import  User,Gig,JobType,Payment,GigHistory,Organization,MpesaNewTransaction, VerificationRequest  # use your custom user model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 
@@ -137,3 +137,59 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'username', 'full_name', 'email', 'phone', 'account_type',
             'location', 'national_id', 'profile_pic'
         ]
+
+
+class VerificationRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VerificationRequest
+        fields = [
+            "id", "user", "status",
+            "id_front", "id_back", "selfie",
+            "rejection_reason", "created_at", "updated_at"
+        ]
+        read_only_fields = ["user", "status", "created_at", "updated_at", "rejection_reason"]
+
+
+# ########################################
+#########################################
+##########  REPORTS SERIALIZERS ##########
+#########################################
+#########################################   
+
+
+# 1. Weekly Worker Report
+class WeeklyWorkerReportSerializer(serializers.Serializer):
+    week = serializers.CharField()
+    total_workers = serializers.IntegerField()
+    verified_workers = serializers.IntegerField()
+    unverified_workers = serializers.IntegerField()
+
+
+# 2. Weekly Gigs Report
+class WeeklyGigReportSerializer(serializers.Serializer):
+    week = serializers.CharField()
+    total_gigs = serializers.IntegerField()
+    verified = serializers.IntegerField()
+    unverified = serializers.IntegerField()
+
+
+# 3. Job Type Distribution Report
+class JobTypeDistributionSerializer(serializers.Serializer):
+    week = serializers.CharField()
+    job_type = serializers.CharField()
+    count = serializers.IntegerField()
+
+
+# 4. Organization Performance Report
+class OrgPerformanceSerializer(serializers.Serializer):
+    organization = serializers.CharField()
+    total_gigs = serializers.IntegerField()
+    verified = serializers.IntegerField()
+
+
+# 5. Verification Impact Report
+class VerificationImpactSerializer(serializers.Serializer):
+    verified_workers_count = serializers.IntegerField()
+    verified_avg_gigs = serializers.FloatField()
+    unverified_workers_count = serializers.IntegerField()
+    unverified_avg_gigs = serializers.FloatField()
