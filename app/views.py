@@ -563,6 +563,21 @@ class GigListView(APIView):
         serializer = GigSerializer(gigs, many=True)
         return Response(serializer.data)
     
+
+class UserOrganizationGigListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Get all organizations owned by the logged-in user
+        user_orgs = Organization.objects.filter(owner=request.user)
+
+        # Filter gigs that belong to those organizations
+        gigs = Gig.objects.filter(organization__in=user_orgs)
+
+        serializer = GigSerializer(gigs, many=True)
+        return Response(serializer.data)
+
+
 class LoggedByUserGigListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -655,6 +670,18 @@ class OrganizationListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         return Organization.objects.all().order_by("id")
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+#user organization list view
+class UserOrganizationListCreateView(generics.ListCreateAPIView):
+    serializer_class = OrganizationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Only return organizations owned by the logged-in user
+        return Organization.objects.filter(owner=self.request.user).order_by("id")
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -1191,7 +1218,6 @@ class LatestVerificationView(generics.RetrieveAPIView):
 
 
 ############################################
-
 ############################################
 ###############REPORTS VIEWS################
 ############################################
