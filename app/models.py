@@ -92,7 +92,7 @@ class PasswordResetCode(models.Model):  #password reset
 
 
 class JobType(models.Model):
-    code = models.CharField(max_length=100, unique=True, editable=False)
+    code = models.CharField(max_length=100, editable=False)
     name = models.CharField(max_length=100)
 
     def save(self, *args, **kwargs):
