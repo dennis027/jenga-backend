@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken  
-from .models import  User,Gig,JobType,Payment,GigHistory,Organization,MpesaNewTransaction, VerificationRequest  # use your custom user model
+from .models import  User,Gig,JobType,Payment,GigHistory,Organization,MpesaNewTransaction, VerificationRequest, GigsAvailable  # use your custom user model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 
@@ -10,7 +10,7 @@ User = get_user_model()
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'account_type', 'full_name', 'national_id', 'location']  
+        fields = ['username', 'email', 'password', 'account_type', 'full_name', 'national_id']  
 
     def validate_email(self, value):
         if User.objects.filter(email__iexact=value).exists():
@@ -64,7 +64,7 @@ class GigSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'email', 'phone', 'full_name', 'national_id',   'county', 'constituency', 'ward', 'profile_pic','is_verified','credit_score']  
+        fields = ['username', 'email', 'phone', 'full_name', 'national_id',   'county', 'constituency', 'ward', 'profile_pic','is_verified','credit_score','current_verification']  
 
     def validate_phone(self, value):
         user = self.instance  # the currently authenticated user
@@ -148,6 +148,13 @@ class VerificationRequestSerializer(serializers.ModelSerializer):
             "rejection_reason", "created_at", "updated_at"
         ]
         read_only_fields = ["user", "status", "created_at", "updated_at", "rejection_reason"]
+
+
+class GigsAvailableSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GigsAvailable
+        fields = ['id', 'title', 'description', 'county','constituency','ward', 'created_at', 'organization', 'worker']
+        read_only_fields = ['id', 'created_at', 'organization', 'worker']
 
 
 # ########################################

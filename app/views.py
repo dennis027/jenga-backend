@@ -3,13 +3,13 @@ import requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import authenticate,get_user_model
-from .serializers import RegisterSerializer, LoginSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer,OrganizationSerializer,UserSerializer,UserDetailWithGigsSerializer,MpesaNewTransactionSerializer, VerificationRequestSerializer,  WeeklyWorkerReportSerializer,WeeklyGigReportSerializer,JobTypeDistributionSerializer,OrgPerformanceSerializer,VerificationImpactSerializer
+from .serializers import GigsAvailableSerializer, RegisterSerializer, LoginSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer,OrganizationSerializer,UserSerializer,UserDetailWithGigsSerializer,MpesaNewTransactionSerializer, VerificationRequestSerializer,  WeeklyWorkerReportSerializer,WeeklyGigReportSerializer,JobTypeDistributionSerializer,OrgPerformanceSerializer,VerificationImpactSerializer
 from rest_framework import status, permissions,generics
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils.timezone import now
 from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
-from .models import Gig,JobType,GigHistory, Organization,MpesaNewTransaction,UserPaymentSession,PhoneOTP, VerificationRequest
+from .models import Gig, GigsAvailable,JobType,GigHistory, Organization,MpesaNewTransaction,UserPaymentSession,PhoneOTP, VerificationRequest
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Q 
 import logging
@@ -44,7 +44,7 @@ from .afritesting import send_sms
 import africastalking
 from django.views import View
 import json
-import datetime
+from datetime import datetime
 from django.db.models import Count, Q, Avg
 from django.db.models.functions import ExtractWeek, ExtractYear
 
@@ -563,6 +563,25 @@ class GigListView(APIView):
         serializer = GigSerializer(gigs, many=True)
         return Response(serializer.data)
     
+
+
+class GigsAvailableListCreateView(generics.ListCreateAPIView):
+    serializer_class = GigsAvailableSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # Show only gigs from the organizations owned by the logged-in user
+        return GigsAvailable.objects.filter(organization__owner=self.request.user).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        org_id = self.request.data.get("organization")
+        try:
+            organization = Organization.objects.get(id=org_id, owner=self.request.user)
+        except Organization.DoesNotExist:
+            raise PermissionError("You do not own this organization or it does not exist.")
+        
+        serializer.save(organization=organization)
+
 
 class UserOrganizationGigListView(APIView):
     permission_classes = [IsAuthenticated]
