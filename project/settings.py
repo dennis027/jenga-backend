@@ -105,25 +105,44 @@ WSGI_APPLICATION = 'project.wsgi.application'
 
 
 
-if os.getenv("RENDER", "false").lower() == "true":
-    # Render environment (uses DATABASE_URL from Render)
-    DATABASES = {
-        "default": dj_database_url.config(
-            default=os.getenv("DATABASE_URL")
-        )
+# if os.getenv("RENDER", "false").lower() == "true":
+#     # Render environment (uses DATABASE_URL from Render)
+#     DATABASES = {
+#         "default": dj_database_url.config(
+#             default=os.getenv("DATABASE_URL")
+#         )
+#     }
+# else:
+#     # Local development environment
+#     DATABASES = {
+#         'default': {
+#             'ENGINE': 'django.db.backends.postgresql',
+#             'NAME': config('DB_NAME'),
+#             'USER': config('DB_USER'),
+#             'PASSWORD': config('DB_PASSWORD'),
+#             'HOST': config('DB_HOST'),
+#             'PORT': config('DB_PORT'),
+#         }
+#     }
+
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        # 'HOST': os.getenv('DB_HOST'),
+        'PORT': os.getenv('DB_PORT'),
     }
-else:
-    # Local development environment
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME'),
-            'USER': config('DB_USER'),
-            'PASSWORD': config('DB_PASSWORD'),
-            'HOST': config('DB_HOST'),
-            'PORT': config('DB_PORT'),
-        }
-    }
+}
+
+database_url = config("DATABASE_URL")
+
+DATABASES ["default"] = dj_database_url.parse(database_url)
+
+
+
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 
