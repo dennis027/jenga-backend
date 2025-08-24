@@ -236,10 +236,10 @@ AT_USERNAME = config("AT_USERNAME")   # sandbox or live username
 AT_API_KEY  = config("AT_API_KEY")
 africastalking.initialize(AT_USERNAME, AT_API_KEY)
 
-sms = africastalking.SMS
-response = sms.send(
-    message='Your OTP is 123456', 
-    recipients=['+254799157137'],        # Kenyan number
-    sender_id=None,                      # use default or your registered sender ID
-    enqueue=False
-)
+# sms = africastalking.SMS
+# response = sms.send(
+#     message='Your OTP is 123456', 
+#     recipients=['+254799157137'],        # Kenyan number
+#     sender_id=None,                      # use default or your registered sender ID
+#     enqueue=False
+# )

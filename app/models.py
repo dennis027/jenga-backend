@@ -112,19 +112,15 @@ class Gig(models.Model):
 
     worker = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='gigs')
     job_type = models.ForeignKey(JobType, on_delete=models.CASCADE, related_name='gigs')
-
     start_date = models.DateField(default=datetime.date.today) 
-
     duration_value = models.PositiveIntegerField()
     duration_unit = models.CharField(max_length=10, choices=DURATION_UNITS)
-
     client_name = models.CharField(max_length=255, blank=True, null=True)
     client_phone = models.CharField(max_length=20, blank=True, null=True)
-
     county = models.CharField(max_length=100)
     constituency = models.CharField(max_length=100)
     ward = models.CharField(max_length=100)
-
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     logged_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='logged_gigs')
 
     is_verified = models.BooleanField(default=False)
@@ -150,6 +146,22 @@ class Gig(models.Model):
 
     class Meta:
         db_table = 'app_gig' 
+
+
+class CreditScoreHistory(models.Model):
+    ACTION_CHOICES = [
+        ("verify_gig", "Gig Verified"),
+        ("complete_gig", "Gig Completed"),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="score_history")
+    change = models.IntegerField()  # e.g. +5, +10
+    new_score = models.IntegerField()  # resulting score after update
+    action = models.CharField(max_length=50, choices=ACTION_CHOICES)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username}: {self.change} ({self.action}) → {self.new_score}"
 
 
 
@@ -180,6 +192,7 @@ class GigHistory(models.Model):
     ward = models.CharField(max_length=50)
     is_verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, related_name="gig_histories", null=True, blank=True)
 
     def __str__(self):
         return f"{self.worker.username} - {self.job_type.name} on {self.start_date}"

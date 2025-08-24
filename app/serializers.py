@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken  
-from .models import  User,Gig,JobType,Payment,GigHistory,Organization,MpesaNewTransaction, VerificationRequest, GigsAvailable  # use your custom user model
+from .models import  CreditScoreHistory, User,Gig,JobType,Payment,GigHistory,Organization,MpesaNewTransaction, VerificationRequest, GigsAvailable  # use your custom user model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 
@@ -101,16 +101,22 @@ class OrganizationSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['owner', 'created_at']
 
+class CreditScoreHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CreditScoreHistory
+        fields = ["id", "change", "new_score", "action", "timestamp"]
 
 class UserDetailWithGigsSerializer(serializers.ModelSerializer):
-    gigs = serializers.SerializerMethodField()
-    gig_history = serializers.SerializerMethodField()
+    gigs = GigSerializer(many=True, read_only=True)  # worker gigs
+    logged_gigs = GigSerializer(many=True, read_only=True)  # gigs logged by this user
 
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'full_name', 'email', 'phone', 'location',
-            'profile_pic', 'account_type', 'gigs', 'gig_history'
+            "id", "username", "full_name", "email", "phone",
+            "county", "constituency", "ward",
+            "is_verified", "credit_score",
+            "gigs", "logged_gigs"
         ]
 
     def get_gigs(self, obj):
@@ -200,3 +206,33 @@ class VerificationImpactSerializer(serializers.Serializer):
     verified_avg_gigs = serializers.FloatField()
     unverified_workers_count = serializers.IntegerField()
     unverified_avg_gigs = serializers.FloatField()
+
+
+
+##############################################################
+##############################################################
+##########  SINGLE USER GIGS AND HISTORY SERIALIZERS ##########
+##############################################################
+##############################################################
+
+class GigCountSerializer(serializers.Serializer):
+    period = serializers.CharField()
+    total_gigs = serializers.IntegerField()
+
+class GigCompletionRateSerializer(serializers.Serializer):
+    total_gigs = serializers.IntegerField()
+    completed_gigs = serializers.IntegerField()
+    completion_rate = serializers.FloatField()
+
+class GigRevenueSerializer(serializers.Serializer):
+    period = serializers.CharField()
+    total_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+class GigTrendsSerializer(serializers.Serializer):
+    week = serializers.CharField()
+    completed_gigs = serializers.IntegerField()
+
+class TopGigsSerializer(serializers.Serializer):
+    gig_title = serializers.CharField()
+    revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+

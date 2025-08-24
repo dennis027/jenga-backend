@@ -3,13 +3,13 @@ import requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import authenticate,get_user_model
-from .serializers import GigsAvailableSerializer, RegisterSerializer, LoginSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer,OrganizationSerializer,UserSerializer,UserDetailWithGigsSerializer,MpesaNewTransactionSerializer, VerificationRequestSerializer,  WeeklyWorkerReportSerializer,WeeklyGigReportSerializer,JobTypeDistributionSerializer,OrgPerformanceSerializer,VerificationImpactSerializer
+from .serializers import CreditScoreHistorySerializer, GigCompletionRateSerializer, GigCountSerializer, GigRevenueSerializer, GigTrendsSerializer, GigsAvailableSerializer, RegisterSerializer, LoginSerializer, TopGigsSerializer, UserProfileSerializer,GigSerializer,JobTypeSerializer, PaymentSerializer,GigHistorySerializer,OrganizationSerializer,UserSerializer,UserDetailWithGigsSerializer,MpesaNewTransactionSerializer, VerificationRequestSerializer,  WeeklyWorkerReportSerializer,WeeklyGigReportSerializer,JobTypeDistributionSerializer,OrgPerformanceSerializer,VerificationImpactSerializer
 from rest_framework import status, permissions,generics
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from django.utils.timezone import now
 from datetime import timedelta
 from rest_framework.permissions import IsAuthenticated
-from .models import Gig, GigsAvailable,JobType,GigHistory, Organization,MpesaNewTransaction,UserPaymentSession,PhoneOTP, VerificationRequest
+from .models import CreditScoreHistory, Gig, GigsAvailable,JobType,GigHistory, Organization,MpesaNewTransaction,UserPaymentSession,PhoneOTP, VerificationRequest
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Q 
 import logging
@@ -45,8 +45,8 @@ import africastalking
 from django.views import View
 import json
 from datetime import datetime
-from django.db.models import Count, Q, Avg
-from django.db.models.functions import ExtractWeek, ExtractYear
+from django.db.models import Count, Q, Avg, Sum
+from django.db.models.functions import  ExtractWeek, ExtractYear, TruncMonth, TruncYear, TruncWeek
 
 
 
@@ -468,6 +468,14 @@ class VerifyGigView(APIView):
             worker.credit_score = worker.credit_score + 5  # Increase score
             worker.save()
 
+            # log history
+            CreditScoreHistory.objects.create(
+            user=worker,
+            change=+5,
+            new_score=worker.credit_score,
+            action="verify_gig"
+    )
+
         return Response({
             "message": "Gig verified successfully.",
             "gig_status": "verified",
@@ -477,7 +485,7 @@ class VerifyGigView(APIView):
 
 
 # verify gigs
-    
+@method_decorator(csrf_exempt, name='dispatch')
 class CompleteGigAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -503,12 +511,19 @@ class CompleteGigAPIView(APIView):
             constituency=gig.constituency,
             ward=gig.ward,
             is_verified=gig.is_verified,
+            organization=gig.organization
         )
 
         # Update credit score (+10 on completion) directly on User model
         worker = gig.worker  # this is already a User
-        worker.credit_score = (worker.credit_score or 0) + 10
+        worker.credit_score = (worker.credit_score or 0) + 5
         worker.save()
+        CreditScoreHistory.objects.create(
+            user=worker,
+            change=+5,
+            new_score=worker.credit_score,
+            action="verify_gig"
+        )
 
         # Delete gig after moving
         gig.delete()
@@ -521,6 +536,19 @@ class CompleteGigAPIView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+
+# GIG HIstory
+
+class CreditScoreHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        history = CreditScoreHistory.objects.filter(user=request.user).order_by("timestamp")
+        return Response(CreditScoreHistorySerializer(history, many=True).data)
+
+
+
 
 
 #SEARCH GIGS
@@ -571,7 +599,7 @@ class GigsAvailableListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         # Show only gigs from the organizations owned by the logged-in user
-        return GigsAvailable.objects.filter(organization__owner=self.request.user).order_by('-created_at')
+        return GigsAvailable.objects.all().order_by('-created_at')
 
     def perform_create(self, serializer):
         org_id = self.request.data.get("organization")
@@ -731,21 +759,29 @@ class OrganizationSoftDeleteView(APIView):
 
 
 class WorkerSearchAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]  # only logged-in users can search
+
     def get(self, request, *args, **kwargs):
         query = request.query_params.get('q', None)
 
         if not query:
-            return Response({"error": "Please provide a search query (?q=)"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Please provide a search query (?q=)"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             user = User.objects.get(
                 Q(username__iexact=query) |
                 Q(email__iexact=query) |
-                Q(phone__iexact=query)
+                Q(phone__iexact=query) |
+                Q(full_name__icontains=query) |   # NEW: search by full_name
+                Q(national_id__iexact=query)      # NEW: search by national_id
             )
         except User.DoesNotExist:
             return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        # Serialize worker details along with gigs
         data = UserDetailWithGigsSerializer(user).data
         return Response(data, status=status.HTTP_200_OK)
     
@@ -1350,6 +1386,7 @@ class OrgPerformanceReportView(APIView):
 
 # 5. Verification Impact Report
 class VerificationImpactReportView(APIView):
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -1363,3 +1400,143 @@ class VerificationImpactReportView(APIView):
             "unverified_avg_gigs": unverified_workers.aggregate(avg=Avg("gig_count"))["avg"] or 0,
         }
         return Response(VerificationImpactSerializer(data).data)
+    
+
+
+
+
+##############################################################
+##############################################################
+##########  SINGLE USER GIGS AND HISTORY VIEWS ###############
+##############################################################
+##############################################################
+
+# 1. Gig count analysis
+class GigCountAnalysisView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user_orgs = Organization.objects.filter(owner=request.user)
+        gigs = Gig.objects.filter(organization__in=user_orgs)
+
+        period = request.query_params.get("period", "week")
+
+        if period == "day":
+            start_date = now().date() - timedelta(days=1)
+        elif period == "month":
+            start_date = now().date() - timedelta(days=30)
+        elif period == "year":
+            start_date = now().date() - timedelta(days=365)
+        else:  # default week
+            start_date = now().date() - timedelta(days=7)
+
+        count = gigs.filter(start_date__gte=start_date).count()
+        data = {"period": period, "total_gigs": count}
+        return Response(GigCountSerializer(data).data)
+
+
+# 2. Gig completion rate
+class GigCompletionRateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # All orgs owned by the user
+        user_orgs = Organization.objects.filter(owner=request.user)
+
+        # Current gigs
+        gigCurrents = Gig.objects.filter(organization__in=user_orgs)
+
+        # Completed gigs (automatically in history)
+        gigHist = GigHistory.objects.filter(organization__in=user_orgs)
+
+        total = gigCurrents.count() + gigHist.count()
+        completed = gigHist.count()
+        rate = (completed / total * 100) if total > 0 else 0
+
+        data = {
+            "total_gigs": total,
+            "completed_gigs": completed,
+            "completion_rate": round(rate, 2),
+        }
+        return Response(data)
+
+
+# 3. Total revenue per period
+class GigRevenueAnalysisView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user_orgs = Organization.objects.filter(owner=request.user)
+        gigs = Gig.objects.filter(organization__in=user_orgs)
+
+        period = request.query_params.get("period", "week")
+
+        if period == "day":
+            start_date = now().date() - timedelta(days=1)
+        elif period == "month":
+            start_date = now().date() - timedelta(days=30)
+        elif period == "year":
+            start_date = now().date() - timedelta(days=365)
+        else:  # default week
+            start_date = now().date() - timedelta(days=7)
+
+        total = gigs.filter(start_date__gte=start_date).aggregate(
+            total=Sum("amount_paid")
+        )["total"] or 0
+
+        data = {"period": period, "total_revenue": total}
+        return Response(GigRevenueSerializer(data).data)
+
+
+# 4. Gig trends (weekly, monthly, yearly)
+class GigTrendsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        period = request.query_params.get("period", "week")
+        user_orgs = Organization.objects.filter(owner=request.user)
+        gigs = Gig.objects.filter(organization__in=user_orgs, is_complete=True)
+
+        if period == "week":
+            grouping = TruncWeek("start_date")
+        elif period == "month":
+            grouping = TruncMonth("start_date")
+        elif period == "year":
+            grouping = TruncYear("start_date")
+        else:
+            return Response(
+                {"error": "Invalid period. Use week, month, or year."}, status=400
+            )
+
+        trends = (
+            gigs.annotate(period=grouping)
+            .values("period")
+            .annotate(completed_gigs=Count("id"))
+            .order_by("period")
+        )
+
+        return Response(GigTrendsSerializer(trends, many=True).data)
+
+
+# 5. Top earning gigs
+class TopEarningGigsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user_orgs = Organization.objects.filter(owner=request.user)
+        gigs = Gig.objects.filter(organization__in=user_orgs)
+
+        top_gigs = (
+            gigs.values("job_type__name", "client_name")
+            .annotate(revenue=Sum("amount_paid"))
+            .order_by("-revenue")[:5]
+        )
+
+        data = [
+            {
+                "gig_title": g["job_type__name"] or g["client_name"] or "Unknown",
+                "revenue": g["revenue"],
+            }
+            for g in top_gigs
+        ]
+        return Response(TopGigsSerializer(data, many=True).data)

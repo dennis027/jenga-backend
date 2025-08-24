@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import GigsAvailableListCreateView, LatestVerificationView, RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, UserOrganizationGigListView, VerificationActionView, VerificationRequestCreateView, VerificationRequestListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView,ResendVerificationEmailView,SendOTPView,CompleteGigAPIView,WeeklyWorkerReportView,WeeklyGigReportView,JobTypeDistributionReportView,OrgPerformanceReportView,UserOrganizationListCreateView, VerificationImpactReportView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  
+from .views import CreditScoreHistoryView, GigCompletionRateView, GigCountAnalysisView, GigRevenueAnalysisView, GigTrendsView, GigsAvailableListCreateView, LatestVerificationView, RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, TopEarningGigsView, UserOrganizationGigListView, VerificationActionView, VerificationRequestCreateView, VerificationRequestListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,GigHistoryView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView,ResendVerificationEmailView,SendOTPView,CompleteGigAPIView,WeeklyWorkerReportView,WeeklyGigReportView,JobTypeDistributionReportView,OrgPerformanceReportView,UserOrganizationListCreateView, VerificationImpactReportView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
@@ -47,7 +47,7 @@ urlpatterns = [
     # gig related URLs
     path('api/gigs/', LogGigView.as_view(), name='log-gig'),
     path('api/gigs/verify/<int:gig_id>/', VerifyGigView.as_view(), name='verify-gig'), 
-    path('gigs/<int:gig_id>/complete/', CompleteGigAPIView.as_view(), name='complete-gig'),
+    path('api/gigs/<int:gig_id>/complete/', CompleteGigAPIView.as_view(), name='complete-gig'),
     path('api/gigs-list/', GigListView.as_view(), name='gig-list'),
     path('api/user-gigs-list/', UserOrganizationGigListView.as_view(), name='gig-list'),
     path('api/job-types/', JobTypeListCreateView.as_view(), name='list_create_job_types'),
@@ -57,6 +57,8 @@ urlpatterns = [
     path('api/upload-payment/', PaymentUploadView.as_view(), name='upload_payment'),
     path('api/user-work-history/', UserGigHistoryView.as_view(), name='my-work-history'),
     path('api/gigs-available/', GigsAvailableListCreateView.as_view(), name='gig-list-create'),
+
+    path('api/credit-history/', CreditScoreHistoryView.as_view(), name='credit-history'),
   
 
     # organization URLs
@@ -91,6 +93,15 @@ urlpatterns = [
     path("api/reports/job-type-distribution/", JobTypeDistributionReportView.as_view(), name="job-type-distribution"),
     path("api/reports/org-performance/", OrgPerformanceReportView.as_view(), name="org-performance"),
     path("api/reports/verification-impact/", VerificationImpactReportView.as_view(), name="verification-impact"),
+
+
+
+    # Supervisor user reports analytics
+    path("api/analysis/gig-count/", GigCountAnalysisView.as_view(), name="gig-count"),
+    path("api/analysis/completion-rate/", GigCompletionRateView.as_view(), name="completion-rate"),
+    path("api/analysis/revenue/", GigRevenueAnalysisView.as_view(), name="gig-revenue"),
+    path("api/analysis/trends/", GigTrendsView.as_view(), name="gig-trends"),
+    path("api/analysis/top-gigs/", TopEarningGigsView.as_view(), name="top-gigs"),
 
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
