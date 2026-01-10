@@ -105,41 +105,41 @@ WSGI_APPLICATION = 'project.wsgi.application'
 
 
 
-# if os.getenv("RENDER", "false").lower() == "true":
-#     # Render environment (uses DATABASE_URL from Render)
-#     DATABASES = {
-#         "default": dj_database_url.config(
-#             default=os.getenv("DATABASE_URL")
-#         )
-#     }
-# else:
-#     # Local development environment
-#     DATABASES = {
-#         'default': {
-#             'ENGINE': 'django.db.backends.postgresql',
-#             'NAME': config('DB_NAME'),
-#             'USER': config('DB_USER'),
-#             'PASSWORD': config('DB_PASSWORD'),
-#             'HOST': config('DB_HOST'),
-#             'PORT': config('DB_PORT'),
-#         }
-#     }
-
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        # 'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT'),
+if os.getenv("RENDER", "false").lower() == "true":
+    # Render environment (uses DATABASE_URL from Render)
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=os.getenv("DATABASE_URL")
+        )
     }
-}
+else:
+    # Local development environment
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME'),
+            'USER': config('DB_USER'),
+            'PASSWORD': config('DB_PASSWORD'),
+            'HOST': config('DB_HOST'),
+            'PORT': config('DB_PORT'),
+        }
+    }
 
-database_url = config("DATABASE_URL")
 
-DATABASES ["default"] = dj_database_url.parse(database_url)
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.getenv('DB_NAME'),
+#         'USER': os.getenv('DB_USER'),
+#         'PASSWORD': os.getenv('DB_PASSWORD'),
+#         # 'HOST': os.getenv('DB_HOST'),
+#         'PORT': os.getenv('DB_PORT'),
+#     }
+# }
+
+# database_url = config("DATABASE_URL")
+
+# DATABASES ["default"] = dj_database_url.parse(database_url)
 
 
 
@@ -208,7 +208,7 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8000",       # Django itself (optional)
-    "http://localhost:3000",       # React or web frontend (optional)
+    "http://localhost:4200",       # Angular or web frontend (optional)
     "http://localhost:8080",       # Flutter Web dev server
     "http://127.0.0.1:8080",       # Flutter Web (alternate)
 ]

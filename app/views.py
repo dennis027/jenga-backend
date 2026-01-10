@@ -47,7 +47,7 @@ import json
 from datetime import datetime
 from django.db.models import Count, Q, Avg, Sum
 from django.db.models.functions import  ExtractWeek, ExtractYear, TruncMonth, TruncYear, TruncWeek
-
+from rest_framework.permissions import AllowAny 
 
 
 
@@ -110,38 +110,60 @@ class CheckPhoneExists(APIView):
         return Response({"exists": False, "message": "Phone number is available"}, status=400)
 
 class RegisterView(APIView):
-    permission_classes = []
+    permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
+        email = request.data.get('email', '').lower()
+        username = request.data.get('username', '')
+
+        # Check if user exists
+        existing_user = User.objects.filter(email__iexact=email).first()
+        if existing_user:
+            if not existing_user.is_verified:
+                return Response({
+                    "code": "EMAIL_NOT_VERIFIED",
+                    "message": "Account exists but not verified. Please check your email.",
+                    "email": existing_user.email
+                }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({
+                    "message": "Email already registered."
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        existing_username = User.objects.filter(username__iexact=username).first()
+        if existing_username:
+            return Response({
+                "message": "Username already in use."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Proceed with registration
         serializer = RegisterSerializer(data=request.data)
-        print(request.data)  # Debugging line to check incoming data
-        if serializer.is_valid():
-            user = serializer.save()
-            user.is_verified = False
-            user.save()
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
 
-            uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
-            token = default_token_generator.make_token(user)
-            activation_link = request.build_absolute_uri(
-                reverse('activate', kwargs={'uidb64': uidb64, 'token': token})
-            )
+        # Generate activation link
+        uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        activation_link = request.build_absolute_uri(
+            reverse('activate', kwargs={'uidb64': uidb64, 'token': token})
+        )
 
-            subject = "Activate Your Account"
-            html_content = render_to_string('activation/activation_email.html', {
-                'username': user.username,
-                'activation_link': activation_link
-            })
+        subject = "Activate Your Account"
+        html_content = render_to_string('activation/activation_email.html', {
+            'username': user.username,
+            'activation_link': activation_link
+        })
 
-            try:
-                send_mail(subject, '', settings.DEFAULT_FROM_EMAIL, [user.email], html_message=html_content)
-            except Exception as e:
-                return Response({"error": f"Failed to send activation email: {str(e)}"},
-                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        try:
+            send_mail(subject, '', settings.DEFAULT_FROM_EMAIL, [user.email], html_message=html_content)
+        except Exception as e:
+            return Response({"error": f"Failed to send activation email: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            return Response({"message": "Registration successful. Please check your email to activate your account."},
-                            status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            "message": "Registration successful. Please check your email to activate your account."
+        }, status=status.HTTP_201_CREATED)
 
 
 class ActivateAccountAPIView(APIView):
@@ -166,38 +188,56 @@ class ActivateAccountAPIView(APIView):
             return redirect('/activation-failed/')
         
         
-        
 class ResendVerificationEmailView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
-        user = request.user
+        email = request.data.get("email")
 
-        # Check if already verified
-        if user.is_verified:
-            return Response({"message": "Your account is already verified."}, status=status.HTTP_400_BAD_REQUEST)
+        if not email:
+            return Response(
+                {"message": "If the email exists, a verification link has been sent."},
+                status=status.HTTP_200_OK
+            )
 
-        # Generate new token and link
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"message": "If the email exists, a verification link has been sent."},
+                status=status.HTTP_200_OK
+            )
+
+        if user.is_verified: 
+            return Response(
+                {"message": "If the email exists, a verification link has been sent."},
+                status=status.HTTP_200_OK
+            )
+
         uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
         activation_link = request.build_absolute_uri(
             reverse('activate', kwargs={'uidb64': uidb64, 'token': token})
         )
 
-        subject = "Activate Your Account"
         html_content = render_to_string('activation/activation_email.html', {
             'username': user.username,
             'activation_link': activation_link
         })
 
-        try:
-            send_mail(subject, '', settings.DEFAULT_FROM_EMAIL, [user.email], html_message=html_content)
-        except Exception as e:
-            return Response({"error": f"Failed to send activation email: {str(e)}"},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        send_mail(
+            subject="Activate Your Account",
+            message="",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            html_message=html_content
+        )
 
-        return Response({"message": "Verification email sent. Please check your inbox."},
-                        status=status.HTTP_200_OK)
+        return Response(
+            {"message": "If the email exists, a verification link has been sent."},
+            status=status.HTTP_200_OK
+        )
 
 
 
@@ -216,36 +256,65 @@ def activation_failed_view(request):
 
 
 
-
 class LoginView(APIView):
-    permission_classes = []
+    permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
-        if serializer.is_valid():
-            login_input = serializer.validated_data['username']
-            password = serializer.validated_data['password']
+        serializer.is_valid(raise_exception=True)
 
-            try:
-                user = User.objects.get(
-                    Q(username__iexact=login_input) |
-                    Q(email__iexact=login_input) |
-                    Q(phone__iexact=login_input)  # You must ensure your User model has this field
-                )
-            except User.DoesNotExist:
-                return Response({"error": "User not found"}, status=status.HTTP_401_UNAUTHORIZED)
+        login_input = serializer.validated_data['username']
+        password = serializer.validated_data['password']
 
-            user = authenticate(username=user.username, password=password)
-            if user:
-                refresh = RefreshToken.for_user(user)
-                return Response({
-                    'refresh': str(refresh),
-                    'access': str(refresh.access_token)
-                })
-            else:
-                return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            user = User.objects.get(
+                Q(username__iexact=login_input) |
+                Q(email__iexact=login_input) |
+                Q(phone__iexact=login_input)
+            )
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Check if user is verified
+        if not user.is_verified:
+            return Response(
+                {
+                    "code": "EMAIL_NOT_VERIFIED",
+                    "message": "Account exists but not verified. Please check your email.",
+                    "email": user.email
+                },
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        user = authenticate(
+            request=request,
+            username=user.username,
+            password=password
+        )
+
+        if not user:
+            return Response(
+                {"error": "Invalid credentials"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "account_type": user.account_type
+            }
+        }, status=status.HTTP_200_OK)
+
 
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -263,6 +332,7 @@ class LogoutView(APIView):
 # password reset code generation
 class RequestPasswordResetView(APIView):
     permission_classes = [AllowAny]
+    
     def post(self, request):
         email = request.data.get('email')
         if not email:
@@ -278,15 +348,385 @@ class RequestPasswordResetView(APIView):
         code = str(random.randint(100000, 999999))
         PasswordResetCode.objects.create(user=user, code=code)
 
-        send_mail(
-            subject="Your Password Reset Code",
-            message=f"Your password reset code is: {code}\nThis code will expire in 30 minutes.",
-            from_email=None,
-            recipient_list=[email],
-            fail_silently=False,
-        )
+        # Send beautiful email with the code
+        try:
+            self.send_password_reset_email(user, code)
+        except Exception as e:
+            logger.error(f"Failed to send password reset email to {user.email}: {str(e)}")
+            # Still return success message for security
+            return Response({"message": "If this email exists, a reset code has been sent."})
 
         return Response({"message": "If this email exists, a reset code has been sent."})
+
+    def send_password_reset_email(self, user, code):
+        """
+        Send a beautifully designed password reset email
+        """
+        subject = "Your Password Reset Code"
+        
+        # Get current time for display
+        current_time = timezone.now().strftime('%B %d, %Y at %I:%M %p')
+        
+        # HTML email template with modern, beautiful design
+        html_message = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Password Reset Code</title>
+            <style>
+                * {{
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }}
+                
+                body {{
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                    line-height: 1.6;
+                    color: #2c3e50;
+                    background-color: #f8fafc;
+                }}
+                
+                .email-container {{
+                    max-width: 600px;
+                    margin: 0 auto;
+                    background-color: #ffffff;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+                    border-radius: 12px;
+                    overflow: hidden;
+                }}
+                
+                .header {{
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    padding: 40px 30px;
+                    text-align: center;
+                    position: relative;
+                }}
+                
+                .header::before {{
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="25" cy="75" r="1" fill="rgba(255,255,255,0.05)"/><circle cx="75" cy="25" r="1" fill="rgba(255,255,255,0.05)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+                    opacity: 0.3;
+                }}
+                
+                .header-content {{
+                    position: relative;
+                    z-index: 1;
+                }}
+                
+                .lock-icon {{
+                    width: 60px;
+                    height: 60px;
+                    margin: 0 auto 20px;
+                    background: rgba(255, 255, 255, 0.2);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    backdrop-filter: blur(10px);
+                }}
+                
+                .header h1 {{
+                    color: #ffffff;
+                    font-size: 28px;
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                }}
+                
+                .header p {{
+                    color: rgba(255, 255, 255, 0.9);
+                    font-size: 16px;
+                }}
+                
+                .content {{
+                    padding: 40px 30px;
+                }}
+                
+                .greeting {{
+                    font-size: 18px;
+                    color: #2c3e50;
+                    margin-bottom: 25px;
+                }}
+                
+                .code-section {{
+                    text-align: center;
+                    margin: 30px 0;
+                    padding: 30px 20px;
+                    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                    border-radius: 12px;
+                    position: relative;
+                    overflow: hidden;
+                }}
+                
+                .code-section::before {{
+                    content: '';
+                    position: absolute;
+                    top: -50%;
+                    left: -50%;
+                    width: 200%;
+                    height: 200%;
+                    background: repeating-conic-gradient(rgba(255,255,255,0.1) 0deg, rgba(255,255,255,0.1) 2deg, transparent 2deg, transparent 4deg);
+                    animation: rotate 20s linear infinite;
+                }}
+                
+                @keyframes rotate {{
+                    0% {{ transform: rotate(0deg); }}
+                    100% {{ transform: rotate(360deg); }}
+                }}
+                
+                .code-label {{
+                    color: rgba(255, 255, 255, 0.9);
+                    font-size: 14px;
+                    font-weight: 500;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                    margin-bottom: 15px;
+                    position: relative;
+                    z-index: 1;
+                }}
+                
+                .code {{
+                    font-size: 36px;
+                    font-weight: 700;
+                    color: #ffffff;
+                    letter-spacing: 8px;
+                    font-family: 'Courier New', monospace;
+                    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                    position: relative;
+                    z-index: 1;
+                    margin-bottom: 10px;
+                }}
+                
+                .code-note {{
+                    color: rgba(255, 255, 255, 0.9);
+                    font-size: 14px;
+                    position: relative;
+                    z-index: 1;
+                }}
+                
+                .instructions {{
+                    background: #f8fafc;
+                    border-left: 4px solid #3b82f6;
+                    padding: 20px;
+                    margin: 25px 0;
+                    border-radius: 0 8px 8px 0;
+                }}
+                
+                .instructions h3 {{
+                    color: #1e40af;
+                    font-size: 16px;
+                    margin-bottom: 10px;
+                    display: flex;
+                    align-items: center;
+                }}
+                
+                .instructions ol {{
+                    margin-left: 20px;
+                    color: #4b5563;
+                }}
+                
+                .instructions li {{
+                    margin-bottom: 8px;
+                }}
+                
+                .security-notice {{
+                    background: #fef3c7;
+                    border: 1px solid #f59e0b;
+                    color: #92400e;
+                    padding: 20px;
+                    border-radius: 8px;
+                    margin: 25px 0;
+                }}
+                
+                .security-notice h4 {{
+                    font-size: 16px;
+                    margin-bottom: 10px;
+                    display: flex;
+                    align-items: center;
+                }}
+                
+                .timer-box {{
+                    background: #fee2e2;
+                    border: 1px solid #fca5a5;
+                    color: #dc2626;
+                    padding: 15px;
+                    border-radius: 8px;
+                    text-align: center;
+                    margin: 20px 0;
+                    font-weight: 500;
+                }}
+                
+                .footer {{
+                    background: #f9fafb;
+                    padding: 30px;
+                    text-align: center;
+                    color: #6b7280;
+                    font-size: 14px;
+                    border-top: 1px solid #e5e7eb;
+                }}
+                
+                .footer p {{
+                    margin-bottom: 8px;
+                }}
+                
+                .company-name {{
+                    color: #374151;
+                    font-weight: 600;
+                }}
+                
+                .divider {{
+                    height: 1px;
+                    background: linear-gradient(90deg, transparent, #e5e7eb, transparent);
+                    margin: 20px 0;
+                }}
+                
+                @media (max-width: 600px) {{
+                    .email-container {{
+                        margin: 10px;
+                        border-radius: 8px;
+                    }}
+                    
+                    .header, .content {{
+                        padding: 30px 20px;
+                    }}
+                    
+                    .code {{
+                        font-size: 30px;
+                        letter-spacing: 6px;
+                    }}
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="email-container">
+                <div class="header">
+                    <div class="header-content">
+                        <div class="lock-icon">
+                            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" style="color: white;">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <circle cx="12" cy="16" r="1"></circle>
+                                <path d="m12 13v4"></path>
+                                <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+                            </svg>
+                        </div>
+                        <h1>Password Reset</h1>
+                        <p>Secure access to your account</p>
+                    </div>
+                </div>
+                
+                <div class="content">
+                    <div class="greeting">
+                        Hello {user.first_name or 'there'} 👋
+                    </div>
+                    
+                    <p style="margin-bottom: 25px; color: #4b5563; font-size: 16px;">
+                        We received a request to reset the password for your account associated with <strong>{user.email}</strong>.
+                    </p>
+                    
+                    <div class="code-section">
+                        <div class="code-label">Your Reset Code</div>
+                        <div class="code">{code}</div>
+                        <div class="code-note">Enter this code to reset your password</div>
+                    </div>
+                    
+                    <div class="timer-box">
+                        ⏰ This code will expire in <strong>30 minutes</strong>
+                    </div>
+                    
+                    <div class="instructions">
+                        <h3>
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" style="margin-right: 8px;">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M12 16v-4"></path>
+                                <path d="M12 8h.01"></path>
+                            </svg>
+                            How to use this code:
+                        </h3>
+                        <ol>
+                            <li>Return to the password reset page</li>
+                            <li>Enter the 6-digit code above</li>
+                            <li>Create your new secure password</li>
+                            <li>Confirm your new password</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="security-notice">
+                        <h4>
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" style="margin-right: 8px;">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                            Security Notice
+                        </h4>
+                        <p>If you didn't request this password reset, please ignore this email or contact our support team if you have concerns about your account security.</p>
+                    </div>
+                    
+                    <div class="divider"></div>
+                    
+                    <p style="color: #6b7280; font-size: 14px; text-align: center;">
+                        Need help? Contact our support team or visit our help center.
+                    </p>
+                </div>
+                
+                <div class="footer">
+                    <p><span class="company-name">{getattr(settings, 'SITE_NAME', 'Your App')}</span></p>
+                    <p>This email was sent on {current_time}</p>
+                    <p>This is an automated message, please do not reply to this email.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Plain text version for email clients that don't support HTML
+        plain_message = f"""
+        Password Reset Code
+
+        Hello {user.first_name or 'there'},
+
+        We received a request to reset the password for your account: {user.email}
+
+        Your reset code is: {code}
+
+        This code will expire in 30 minutes.
+
+        How to use this code:
+        1. Return to the password reset page
+        2. Enter the 6-digit code above
+        3. Create your new secure password
+        4. Confirm your new password
+
+        SECURITY NOTICE:
+        If you didn't request this password reset, please ignore this email or contact our support team.
+
+        This email was sent on {current_time}
+        This is an automated message, please do not reply.
+
+        {getattr(settings, 'SITE_NAME', 'Your App')}
+        """
+
+        try:
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+                recipient_list=[user.email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            logger.info(f"Password reset email sent successfully to {user.email}")
+            
+        except Exception as e:
+            logger.error(f"Failed to send password reset email: {str(e)}")
+            raise
     
 @ensure_csrf_cookie
 @require_http_methods(["GET"])
@@ -322,7 +762,7 @@ class VerifyResetCodeView(APIView):
 
         return Response({"message": "Code is valid"}, status=200)
 
-        
+
 class ConfirmResetPasswordView(APIView):
     permission_classes = [AllowAny]
 
@@ -363,7 +803,132 @@ class ConfirmResetPasswordView(APIView):
         # Remove the code after successful reset
         reset_code.delete()
 
+        # Send confirmation email
+        try:
+            self.send_password_reset_confirmation_email(user)
+        except Exception as e:
+            logger.error(f"Failed to send password reset confirmation email to {user.email}: {str(e)}")
+            # Don't fail the request if email sending fails
+
         return Response({"message": "Password reset successful"})
+
+    def send_password_reset_confirmation_email(self, user):
+        """
+        Send a confirmation email after successful password reset
+        """
+        subject = "Password Reset Successful"
+        
+        # HTML email template
+        html_message = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Password Reset Confirmation</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background-color: #4CAF50; color: white; padding: 20px; text-align: center; }}
+                .content {{ padding: 20px; background-color: #f9f9f9; }}
+                .footer {{ padding: 20px; text-align: center; color: #666; font-size: 14px; }}
+                .alert {{ background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; margin: 15px 0; border-radius: 4px; }}
+                .btn {{ display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; margin: 10px 0; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>Password Reset Successful</h1>
+                </div>
+                
+                <div class="content">
+                    <h2>Hello {user.first_name or 'User'},</h2>
+                    
+                    <p>Your password has been successfully reset for the account associated with <strong>{user.email}</strong>.</p>
+                    
+                    <p><strong>Reset Details:</strong></p>
+                    <ul>
+                        <li>Date: {user.last_login.strftime('%B %d, %Y at %I:%M %p') if user.last_login else 'Just now'}</li>
+                        <li>Account: {user.email}</li>
+                    </ul>
+                    
+                    <div class="alert">
+                        <strong>⚠️ Important Security Notice:</strong><br>
+                        If you did not request this password reset, please take the following actions immediately:
+                        <ol>
+                            <li>Change your password again by logging into your account</li>
+                            <li>Review your account security settings</li>
+                            <li>Contact our support team if you suspect unauthorized access</li>
+                        </ol>
+                    </div>
+                    
+                    <p>If you made this change, no further action is required. You can now log in with your new password.</p>
+                    
+                    <p><strong>Security Tips:</strong></p>
+                    <ul>
+                        <li>Use a strong, unique password</li>
+                        <li>Enable two-factor authentication if available</li>
+                        <li>Never share your login credentials</li>
+                        <li>Log out of shared or public computers</li>
+                    </ul>
+                </div>
+                
+                <div class="footer">
+                    <p>This email was sent from an automated system. Please do not reply to this email.</p>
+                    <p>If you have any questions, please contact our support team.</p>
+                    <p>&copy; {settings.SITE_NAME if hasattr(settings, 'SITE_NAME') else 'Your App'} - All rights reserved</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Plain text version for email clients that don't support HTML
+        plain_message = f"""
+        Password Reset Successful
+
+        Hello {user.first_name or 'User'},
+
+        Your password has been successfully reset for the account associated with {user.email}.
+
+        IMPORTANT SECURITY NOTICE:
+        If you did not request this password reset, please:
+        1. Change your password again immediately
+        2. Review your account security settings  
+        3. Contact our support team if you suspect unauthorized access
+
+        If you made this change, no further action is required. You can now log in with your new password.
+
+        Security Tips:
+        - Use a strong, unique password
+        - Enable two-factor authentication if available
+        - Never share your login credentials
+        - Log out of shared or public computers
+
+        This email was sent from an automated system. Please do not reply to this email.
+        If you have any questions, please contact our support team.
+        """
+
+        try:
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            logger.info(f"Password reset confirmation email sent successfully to {user.email}")
+            
+        except Exception as e:
+            logger.error(f"Failed to send password reset confirmation email: {str(e)}")
+            raise
+
+    def get_support_email(self):
+        """
+        Get support email from settings or return default
+        """
+        return getattr(settings, 'SUPPORT_EMAIL', 'support@yourapp.com')
 
 
 

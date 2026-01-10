@@ -8,24 +8,34 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 class RegisterSerializer(serializers.ModelSerializer):
+    confirm_password = serializers.CharField(write_only=True)
+
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'account_type', 'full_name', 'national_id']  
+        fields = [
+            'username', 'email', 'password', 'confirm_password',
+            'account_type', 'full_name', 'national_id', 'county', 'constituency', 'ward', 'phone'
+        ]
+        extra_kwargs = {'password': {'write_only': True}}
 
     def validate_email(self, value):
-        if User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("Email already in use.")
+        # Allow unverified users to pass; view handles EMAIL_NOT_VERIFIED
         return value
 
     def validate_username(self, value):
-        if User.objects.filter(username__iexact=value).exists():
-            raise serializers.ValidationError("Username already in use.")
         return value
 
+    def validate(self, data):
+        if data['password'] != data.get('confirm_password', ''):
+            raise serializers.ValidationError({"password": "Passwords do not match."})
+        return data
+
     def create(self, validated_data):
+        validated_data.pop('confirm_password', None)
         password = validated_data.pop('password')
         user = User(**validated_data)
         user.set_password(password)
+        user.is_verified = False
         user.save()
         return user
 
