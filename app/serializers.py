@@ -68,7 +68,26 @@ class GigSerializer(serializers.ModelSerializer):
     class Meta:
         model = Gig
         fields = '__all__'
-        read_only_fields = ['worker', 'logged_by', 'verified_by', 'is_verified', 'created_at']
+        read_only_fields = [
+            'worker',
+            'logged_by',
+            'verified_by',
+            'is_verified',
+            'created_at',
+            'client_name',
+            'client_phone',
+        ]
+
+    def create(self, validated_data):
+        organization = validated_data.get('organization')
+
+        # Auto-fill client fields from organization
+        if organization:
+            validated_data['client_name'] = organization.name
+            validated_data['client_phone'] = organization.phone_number
+
+        return super().create(validated_data)
+
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
