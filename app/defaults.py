@@ -1,0 +1,23 @@
+DEFAULT_JOB_TYPES = [
+    "Masonry",
+    "Plumbing",
+    "Plastering",
+    "Carpentry",
+    "Painting",
+    "Electrical",
+    "Roofing",
+    "Tiling",
+    "Welding",
+    "Steel Fixing",
+    "Concrete Works",
+    "Block Laying",
+    "Gypsum Installation",
+    "Ceiling Installation",
+    "Floor Finishing",
+    "Door Installation",
+    "Window Installation",
+    "Waterproofing",
+    "Drainage",
+    "Landscaping",
+    # add up to ~30
+]

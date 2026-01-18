@@ -92,15 +92,24 @@ class PasswordResetCode(models.Model):  #password reset
 
 
 class JobType(models.Model):
-    code = models.CharField(max_length=100, editable=False)
+    organization = models.ForeignKey(
+        "Organization",          # string reference ✅
+        on_delete=models.CASCADE,
+        related_name="job_types"
+    )
     name = models.CharField(max_length=100)
+    code = models.CharField(max_length=100, editable=False)
+
+    class Meta:
+        unique_together = ("organization", "code")
+        ordering = ["name"]
 
     def save(self, *args, **kwargs):
-        self.code = self.name.lower().replace(" ", "_")  # e.g., "Tile Fitting" → "TILE_FITTING"
+        self.code = self.name.lower().replace(" ", "_")
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.name} ({self.code})"
+        return f"{self.name} ({self.organization.name})"
 
 
 
