@@ -88,9 +88,8 @@ class CheckUsernameExists(APIView):
             return Response({"exists": True, "message": "Username already exists"}, status=200)
         return Response({"exists": False, "message": "Username is available"}, status=400)
 
-
 class UserListAPIView(APIView):
-    permission_classes = [IsAuthenticated]  # Remove if public access is okay
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         users = User.objects.all()

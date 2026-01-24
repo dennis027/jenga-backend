@@ -164,15 +164,12 @@ class MpesaNewTransactionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'username', 'full_name', 'email', 'phone', 'account_type',
-            'location', 'national_id', 'profile_pic'
+            'id', 'username', 'full_name', 'email', 'phone', 'account_type', 'county', 'constituency', 'ward', 'national_id', 'profile_pic', 'is_verified',
         ]
-
 
 class VerificationRequestSerializer(serializers.ModelSerializer):
     class Meta:
