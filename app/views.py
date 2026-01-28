@@ -48,6 +48,9 @@ from datetime import datetime
 from django.db.models import Count, Q, Avg, Sum
 from django.db.models.functions import  ExtractWeek, ExtractYear, TruncMonth, TruncYear, TruncWeek
 from rest_framework.permissions import AllowAny 
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+
 
 
 
@@ -971,18 +974,21 @@ class CookieLoginView(APIView):
         return Response(serializer.errors, status=400)
     
 
-
-
 class ProfileUpdateView(APIView):
+    authentication_classes = [JWTAuthentication]   
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
     def put(self, request):
-        serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+        serializer = UserProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=True
+        )
         if serializer.is_valid():
             serializer.save()
             return Response({'message': 'Profile updated successfully'})
         return Response(serializer.errors, status=400)
-    
 
 
 
@@ -1179,14 +1185,13 @@ class UserOrganizationGigListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # Get all organizations owned by the logged-in user
-        user_orgs = Organization.objects.filter(owner=request.user)
-
-        # Filter gigs that belong to those organizations
-        gigs = Gig.objects.filter(organization__in=user_orgs)
+        gigs = Gig.objects.filter(
+            organization__owner=request.user
+        ).select_related('organization', 'job_type')
 
         serializer = GigSerializer(gigs, many=True)
         return Response(serializer.data)
+
 
 
 class LoggedByUserGigListView(APIView):
