@@ -999,11 +999,12 @@ class LogGigView(APIView):
         serializer = GigSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(
-                worker=request.user,        # ✅ Assign worker from authenticated user
-                logged_by=request.user      # ✅ Assign logged_by as well
+                worker=request.user,
+                logged_by=request.user
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 # 2. Confirm/Verify a gig by peer or foreman  
 class VerifyGigView(APIView):
@@ -1513,10 +1514,12 @@ class STKNewPushView(APIView):
             # Save user session
             try:
                 UserPaymentSession.objects.create(
-                    user=request.user,  # The logged-in user
+                    user=request.user,
+                    phone_number=phone,
                     checkout_request_id=checkout_request_id,
                     merchant_request_id=merchant_request_id
                 )
+
                 logger.info(f"✅ User session saved for {request.user.username}")
             except Exception as e:
                 logger.error(f"❌ Failed to save user session: {str(e)}")

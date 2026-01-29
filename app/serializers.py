@@ -76,15 +76,25 @@ class GigSerializer(serializers.ModelSerializer):
             'created_at',
             'client_name',
             'client_phone',
+            'county',
+            'constituency',
+            'ward',
         ]
 
     def create(self, validated_data):
         organization = validated_data.get('organization')
 
-        # Auto-fill client fields from organization
-        if organization:
-            validated_data['client_name'] = organization.name
-            validated_data['client_phone'] = organization.phone_number
+        if not organization:
+            raise serializers.ValidationError({
+                "organization": "Organization is required"
+            })
+
+       
+        validated_data['client_name'] = organization.name
+        validated_data['client_phone'] = organization.phone_number
+        validated_data['county'] = organization.county
+        validated_data['constituency'] = organization.constituency
+        validated_data['ward'] = organization.ward
 
         return super().create(validated_data)
 
