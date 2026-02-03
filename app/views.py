@@ -49,6 +49,7 @@ from django.db.models import Count, Q, Avg, Sum
 from django.db.models.functions import  ExtractWeek, ExtractYear, TruncMonth, TruncYear, TruncWeek
 from rest_framework.permissions import AllowAny 
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.decorators import api_view, permission_classes
 
 
 
@@ -2112,3 +2113,602 @@ class TopEarningGigsView(APIView):
             for g in top_gigs
         ]
         return Response(TopGigsSerializer(data, many=True).data)
+
+
+#########################################################
+#########################################################
+#########################################################
+# FUNDI DASHBOARD APIS
+#########################################################
+#########################################################
+#########################################################
+
+
+
+class FundiDashboardStatsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Get dashboard statistics for the authenticated Fundi user
+        """
+        user = request.user
+        print(f"[FundiDashboardStatsView] Authenticated user: {user}, is_authenticated: {user.is_authenticated}")
+        
+        # Get date ranges
+        today = timezone.now().date()
+        thirty_days_ago = today - timedelta(days=30)
+        
+        # Total gigs for this user
+        total_gigs = Gig.objects.filter(worker=user).count()
+        
+        # Verified gigs
+        verified_gigs = Gig.objects.filter(worker=user, is_verified=True).count()
+        
+        # Count verified days in last 30 days
+        verified_days_count = Gig.objects.filter(
+            worker=user,
+            is_verified=True,
+            start_date__gte=thirty_days_ago
+        ).values('start_date').distinct().count()
+        
+        # Verification rate calculation
+        verification_rate = round((verified_gigs / total_gigs * 100), 0) if total_gigs > 0 else 0
+        
+        # Count unique organizations/sites worked
+        sites_worked = Gig.objects.filter(worker=user).values('organization').distinct().count()
+        
+        # Disputes (assuming this would be a separate model - for now set to 0)
+        disputes = 0
+        
+        # Calculate how many months of history (based on earliest gig)
+        earliest_gig = Gig.objects.filter(worker=user).order_by('start_date').first()
+        history_months = 0
+        if earliest_gig:
+            delta = today - earliest_gig.start_date
+            history_months = max(1, delta.days // 30)
+        
+        return Response({
+            'total_gigs': total_gigs,
+            'verified_gigs': verified_gigs,
+            'verified_days': verified_days_count,
+            'verification_rate': verification_rate,
+            'sites_worked': sites_worked,
+            'disputes': disputes,
+            'history_months': history_months,
+            'credit_score': user.credit_score
+        })
+
+
+class FundiRecentWorkLogsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Get recent work logs for the authenticated Fundi user
+        Limited to last 10 gigs, ordered by most recent
+        """
+        user = request.user
+        print(f"[FundiRecentWorkLogsView] Authenticated user: {user}, is_authenticated: {user.is_authenticated}")
+        
+        # Get recent gigs with related data
+        recent_gigs = Gig.objects.filter(worker=user).select_related(
+            'job_type', 'organization', 'verified_by'
+        ).order_by('-start_date')[:10]
+        
+        work_logs = []
+        for gig in recent_gigs:
+            work_log = {
+                'id': gig.id,
+                'siteName': gig.organization.name if gig.organization else gig.client_name,
+                'jobType': gig.job_type.name,
+                'date': gig.start_date.isoformat(),
+                'verified': gig.is_verified,
+            }
+            
+            # Add foreman name if verified
+            if gig.is_verified and gig.verified_by:
+                work_log['foremanName'] = gig.verified_by.full_name or gig.verified_by.username
+            
+            work_logs.append(work_log)
+        
+        return Response(work_logs)
+
+
+class Fundi30DayCalendarView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Get 30-day activity calendar showing work status for each day
+        """
+        user = request.user
+        print(f"[Fundi30DayCalendarView] Authenticated user: {user}, is_authenticated: {user.is_authenticated}")
+        
+        today = timezone.now().date()
+        thirty_days_ago = today - timedelta(days=29)
+        
+        # Get all gigs in the last 30 days
+        gigs_in_range = Gig.objects.filter(
+            worker=user,
+            start_date__gte=thirty_days_ago,
+            start_date__lte=today
+        ).values('start_date', 'is_verified')
+        
+        # Create a dict for quick lookup
+        gig_status_map = {}
+        for gig in gigs_in_range:
+            date_key = gig['start_date'].isoformat()
+            if date_key not in gig_status_map:
+                gig_status_map[date_key] = {
+                    'verified': False,
+                    'pending': False
+                }
+            
+            if gig['is_verified']:
+                gig_status_map[date_key]['verified'] = True
+            else:
+                gig_status_map[date_key]['pending'] = True
+        
+        # Build calendar array
+        calendar = []
+        for i in range(30):
+            date = thirty_days_ago + timedelta(days=i)
+            date_key = date.isoformat()
+            
+            # Determine status
+            if date_key in gig_status_map:
+                if gig_status_map[date_key]['verified']:
+                    status = 'verified'
+                    tooltip = f"{date.strftime('%b %d')} - Work verified"
+                else:
+                    status = 'pending'
+                    tooltip = f"{date.strftime('%b %d')} - Pending verification"
+            else:
+                status = 'empty'
+                tooltip = f"{date.strftime('%b %d')} - No work logged"
+            
+            calendar.append({
+                'date': date.isoformat(),
+                'dayNum': date.day,
+                'status': status,
+                'tooltip': tooltip
+            })
+        
+        return Response(calendar)
+
+
+class FundiCreditScoreHistoryView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Get credit score history for the authenticated user
+        """
+        user = request.user
+        print(f"[FundiCreditScoreHistoryView] Authenticated user: {user}, is_authenticated: {user.is_authenticated}")
+        
+        history = CreditScoreHistory.objects.filter(
+            user=user
+        ).order_by('-timestamp')[:20]
+        
+        serializer = CreditScoreHistorySerializer(history, many=True)
+        return Response(serializer.data)
+
+
+class FundiAllGigsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Get all gigs for the authenticated Fundi user with pagination
+        """
+        user = request.user
+        print(f"[FundiAllGigsView] Authenticated user: {user}, is_authenticated: {user.is_authenticated}")
+        
+        gigs = Gig.objects.filter(worker=user).select_related(
+            'job_type', 'organization', 'verified_by'
+        ).order_by('-start_date')
+        
+        serializer = GigSerializer(gigs, many=True)
+        return Response(serializer.data)
+
+
+class FundiOrganizationsWorkedView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Get list of organizations the Fundi has worked with
+        """
+        user = request.user
+        print(f"[FundiOrganizationsWorkedView] Authenticated user: {user}, is_authenticated: {user.is_authenticated}")
+        
+        organizations = Organization.objects.filter(
+            gigs__worker=user
+        ).distinct().values('id', 'name', 'county', 'constituency', 'ward')
+        
+        return Response(list(organizations))
+
+############################################################
+############################################################
+############################################################
+# JENGA PRO DASHBOARD
+############################################################
+############################################################
+############################################################
+
+
+class ContractorDashboardStatsView(APIView):
+    """
+    Get dashboard statistics for Contractor/Supervisor
+    Only shows data for organizations owned by the authenticated user
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        print(f"[ContractorDashboardStatsView] User: {user}, Account type: {user.account_type}")
+        
+        # Get date ranges
+        today = timezone.now().date()
+        week_ago = today - timedelta(days=7)
+        
+        # Get user's organizations
+        user_orgs = Organization.objects.filter(owner=user)
+        
+        # Total gigs in user's organizations
+        total_gigs = Gig.objects.filter(organization__in=user_orgs).count()
+        
+        # Unverified gigs
+        unverified_gigs = Gig.objects.filter(
+            organization__in=user_orgs,
+            is_verified=False
+        ).count()
+        
+        # Active workers (unique workers who have worked in user's orgs)
+        active_workers = Gig.objects.filter(
+            organization__in=user_orgs
+        ).values('worker').distinct().count()
+        
+        # Active sites (user's organizations)
+        active_sites = user_orgs.filter(is_active=True).count()
+        
+        # Verified this week
+        verified_this_week = Gig.objects.filter(
+            organization__in=user_orgs,
+            is_verified=True,
+            created_at__gte=week_ago
+        ).count()
+        
+        # Verification rate
+        verified_gigs = Gig.objects.filter(
+            organization__in=user_orgs,
+            is_verified=True
+        ).count()
+        verification_rate = round((verified_gigs / total_gigs * 100), 0) if total_gigs > 0 else 0
+        
+        # Average verification time (days between created_at and when verified)
+        # For now, we'll use a placeholder. You might want to add a verified_at field
+        avg_verification_time = 4  # placeholder
+        
+        return Response({
+            'total_gigs': total_gigs,
+            'unverified_gigs': unverified_gigs,
+            'active_workers': active_workers,
+            'active_sites': active_sites,
+            'verified_this_week': verified_this_week,
+            'verification_rate': verification_rate,
+            'avg_verification_time': avg_verification_time
+        })
+
+
+class ContractorRecentGigsView(APIView):
+    """
+    Get recent gigs for Contractor's organizations
+    Limited to last 20 gigs, ordered by most recent
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        print(f"[ContractorRecentGigsView] User: {user}")
+        
+        # Get user's organizations
+        user_orgs = Organization.objects.filter(owner=user)
+        
+        # Get recent gigs in user's organizations
+        recent_gigs = Gig.objects.filter(
+            organization__in=user_orgs
+        ).select_related(
+            'worker', 'job_type', 'organization'
+        ).order_by('-created_at')[:20]
+        
+        gigs_data = []
+        for gig in recent_gigs:
+            gigs_data.append({
+                'id': gig.id,
+                'workerName': gig.worker.full_name or gig.worker.username,
+                'siteName': gig.organization.name,
+                'jobType': gig.job_type.name,
+                'date': gig.start_date.strftime('%b %d, %Y'),
+                'verified': gig.is_verified
+            })
+        
+        return Response(gigs_data)
+
+
+class ContractorWeeklyChartView(APIView):
+    """
+    Get weekly gig counts for the last 7 days
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        print(f"[ContractorWeeklyChartView] User: {user}")
+        
+        # Get user's organizations
+        user_orgs = Organization.objects.filter(owner=user)
+        
+        # Get last 7 days
+        today = timezone.now().date()
+        weekly_data = []
+        day_names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        
+        for i in range(6, -1, -1):
+            date = today - timedelta(days=i)
+            
+            # Count gigs for this day
+            gigs_count = Gig.objects.filter(
+                organization__in=user_orgs,
+                start_date=date
+            ).count()
+            
+            weekly_data.append({
+                'day': day_names[date.weekday()],
+                'gigs': gigs_count,
+                'date': date.isoformat()
+            })
+        
+        # Calculate max for chart scaling
+        max_gigs = max([day['gigs'] for day in weekly_data]) if weekly_data else 0
+        
+        return Response({
+            'weekly_data': weekly_data,
+            'max_weekly_gigs': max_gigs
+        })
+
+
+class ContractorTopSitesView(APIView):
+    """
+    Get top performing sites/organizations for the contractor
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        print(f"[ContractorTopSitesView] User: {user}")
+        
+        # Get user's organizations with gig counts
+        user_orgs = Organization.objects.filter(owner=user).annotate(
+            total_gigs=Count('gigs'),
+            verified_gigs=Count('gigs', filter=Q(gigs__is_verified=True)),
+            unique_workers=Count('gigs__worker', distinct=True)
+        ).order_by('-total_gigs')[:10]
+        
+        sites_data = []
+        for org in user_orgs:
+            # Calculate completion rate (verified / total)
+            completion = round((org.verified_gigs / org.total_gigs * 100), 0) if org.total_gigs > 0 else 0
+            
+            sites_data.append({
+                'id': org.id,
+                'name': org.name,
+                'workers': org.unique_workers,
+                'gigs': org.total_gigs,
+                'completion': completion
+            })
+        
+        return Response(sites_data)
+
+
+class ContractorTopWorkersView(APIView):
+    """
+    Get top performing workers across contractor's organizations
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        print(f"[ContractorTopWorkersView] User: {user}")
+        
+        # Get user's organizations
+        user_orgs = Organization.objects.filter(owner=user)
+        
+        # Get workers with their gig counts in user's organizations
+        workers_data = Gig.objects.filter(
+            organization__in=user_orgs
+        ).values(
+            'worker__id',
+            'worker__username',
+            'worker__full_name',
+            'worker__profile_pic',
+            'worker__credit_score'
+        ).annotate(
+            gigs_count=Count('id'),
+            verified_gigs=Count('id', filter=Q(is_verified=True))
+        ).order_by('-gigs_count')[:10]
+        
+        top_workers = []
+        for rank, worker in enumerate(workers_data, start=1):
+            # Calculate rating from credit score (scale to 5.0)
+            credit_score = worker['worker__credit_score'] or 0
+            rating = round((credit_score / 100) * 5, 1)
+            
+            top_workers.append({
+                'id': worker['worker__id'],
+                'rank': rank,
+                'name': worker['worker__full_name'] or worker['worker__username'],
+                'avatar': worker['worker__profile_pic'] or '',
+                'gigs': worker['gigs_count'],
+                'rating': rating,
+                'credit_score': credit_score
+            })
+        
+        return Response(top_workers)
+
+
+class Contractor7DayCalendarView(APIView):
+    """
+    Get 7-day calendar with gig counts for mobile view
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        print(f"[Contractor7DayCalendarView] User: {user}")
+        
+        # Get user's organizations
+        user_orgs = Organization.objects.filter(owner=user)
+        
+        # Get last 7 days
+        today = timezone.now().date()
+        calendar = []
+        day_names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        
+        for i in range(6, -1, -1):
+            date = today - timedelta(days=i)
+            
+            # Count gigs for this day
+            gigs_count = Gig.objects.filter(
+                organization__in=user_orgs,
+                start_date=date
+            ).count()
+            
+            calendar.append({
+                'date': date.isoformat(),
+                'dayName': day_names[date.weekday()],
+                'dayNum': date.day,
+                'gigs': gigs_count
+            })
+        
+        return Response(calendar)
+
+
+class ContractorOrganizationsView(APIView):
+    """
+    Get all organizations owned by the contractor
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        print(f"[ContractorOrganizationsView] User: {user}")
+        
+        # Get user's organizations with stats
+        organizations = Organization.objects.filter(owner=user).annotate(
+            total_gigs=Count('gigs'),
+            verified_gigs=Count('gigs', filter=Q(gigs__is_verified=True)),
+            unique_workers=Count('gigs__worker', distinct=True)
+        ).order_by('-created_at')
+        
+        orgs_data = []
+        for org in organizations:
+            orgs_data.append({
+                'id': org.id,
+                'name': org.name,
+                'description': org.description,
+                'county': org.county,
+                'constituency': org.constituency,
+                'ward': org.ward,
+                'phone_number': org.phone_number,
+                'is_active': org.is_active,
+                'created_at': org.created_at.isoformat(),
+                'total_gigs': org.total_gigs,
+                'verified_gigs': org.verified_gigs,
+                'unique_workers': org.unique_workers
+            })
+        
+        return Response(orgs_data)
+
+
+class ContractorGigsByOrganizationView(APIView):
+    """
+    Get gigs filtered by organization
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, org_id):
+        user = request.user
+        print(f"[ContractorGigsByOrganizationView] User: {user}, Org ID: {org_id}")
+        
+        # Verify organization belongs to user
+        try:
+            organization = Organization.objects.get(id=org_id, owner=user)
+        except Organization.DoesNotExist:
+            return Response({'error': 'Organization not found'}, status=404)
+        
+        # Get gigs for this organization
+        gigs = Gig.objects.filter(
+            organization=organization
+        ).select_related(
+            'worker', 'job_type', 'verified_by'
+        ).order_by('-created_at')
+        
+        serializer = GigSerializer(gigs, many=True)
+        return Response(serializer.data)
+
+
+class ContractorUnverifiedGigsView(APIView):
+    """
+    Get all unverified gigs across contractor's organizations
+    """
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        print(f"[ContractorUnverifiedGigsView] User: {user}")
+        
+        # Get user's organizations
+        user_orgs = Organization.objects.filter(owner=user)
+        
+        # Get unverified gigs
+        unverified_gigs = Gig.objects.filter(
+            organization__in=user_orgs,
+            is_verified=False
+        ).select_related(
+            'worker', 'job_type', 'organization'
+        ).order_by('-created_at')
+        
+        gigs_data = []
+        for gig in unverified_gigs:
+            gigs_data.append({
+                'id': gig.id,
+                'workerName': gig.worker.full_name or gig.worker.username,
+                'workerUsername': gig.worker.username,
+                'workerPhone': gig.worker.phone,
+                'siteName': gig.organization.name,
+                'jobType': gig.job_type.name,
+                'startDate': gig.start_date.isoformat(),
+                'duration': f"{gig.duration_value} {gig.duration_unit}",
+                'location': f"{gig.county}, {gig.constituency}, {gig.ward}",
+                'createdAt': gig.created_at.isoformat()
+            })
+        
+        return Response(gigs_data)

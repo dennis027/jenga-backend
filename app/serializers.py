@@ -272,3 +272,63 @@ class TopGigsSerializer(serializers.Serializer):
     gig_title = serializers.CharField()
     revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
 
+
+
+# dashbaord api fundipro
+
+class DashboardGigSerializer(serializers.ModelSerializer):
+    """
+    Simplified Gig serializer for dashboard display
+    """
+    job_type_name = serializers.CharField(source='job_type.name', read_only=True)
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    verified_by_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Gig
+        fields = [
+            'id', 'job_type_name', 'organization_name', 'start_date',
+            'duration_value', 'duration_unit', 'is_verified', 'verified_by_name',
+            'amount_paid', 'created_at', 'is_complete'
+        ]
+    
+    def get_verified_by_name(self, obj):
+        if obj.verified_by:
+            return obj.verified_by.full_name or obj.verified_by.username
+        return None
+
+
+class DashboardStatsSerializer(serializers.Serializer):
+    """
+    Serializer for dashboard statistics response
+    """
+    total_gigs = serializers.IntegerField()
+    verified_gigs = serializers.IntegerField()
+    verified_days = serializers.IntegerField()
+    verification_rate = serializers.FloatField()
+    sites_worked = serializers.IntegerField()
+    disputes = serializers.IntegerField()
+    history_months = serializers.IntegerField()
+    credit_score = serializers.IntegerField()
+
+
+class WorkLogSerializer(serializers.Serializer):
+    """
+    Serializer for work log display in dashboard
+    """
+    id = serializers.IntegerField()
+    siteName = serializers.CharField()
+    jobType = serializers.CharField()
+    date = serializers.DateField()
+    verified = serializers.BooleanField()
+    foremanName = serializers.CharField(required=False, allow_null=True)
+
+
+class CalendarDaySerializer(serializers.Serializer):
+    """
+    Serializer for calendar day display
+    """
+    date = serializers.DateField()
+    dayNum = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=['verified', 'pending', 'empty'])
+    tooltip = serializers.CharField()
