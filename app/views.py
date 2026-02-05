@@ -993,10 +993,18 @@ class ProfileUpdateView(APIView):
 
 
 
+
 class LogGigView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        #Only Fundi can log gigs
+        if request.user.account_type != '01':
+            return Response(
+                {"detail": "Only Fundi accounts can log gigs."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         serializer = GigSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(
@@ -1004,7 +1012,9 @@ class LogGigView(APIView):
                 logged_by=request.user
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 # 2. Confirm/Verify a gig by peer or foreman  
@@ -2488,7 +2498,6 @@ class ContractorWeeklyChartView(APIView):
             'max_weekly_gigs': max_gigs
         })
 
-
 class ContractorTopSitesView(APIView):
     """
     Get top performing sites/organizations for the contractor
@@ -2501,22 +2510,23 @@ class ContractorTopSitesView(APIView):
         print(f"[ContractorTopSitesView] User: {user}")
         
         # Get user's organizations with gig counts
+        # Use different names to avoid conflict with @property methods
         user_orgs = Organization.objects.filter(owner=user).annotate(
-            total_gigs=Count('gigs'),
-            verified_gigs=Count('gigs', filter=Q(gigs__is_verified=True)),
-            unique_workers=Count('gigs__worker', distinct=True)
-        ).order_by('-total_gigs')[:10]
+            gigs_total=Count('gigs'),
+            gigs_verified=Count('gigs', filter=Q(gigs__is_verified=True)),
+            workers_count=Count('gigs__worker', distinct=True)
+        ).order_by('-gigs_total')[:10]
         
         sites_data = []
         for org in user_orgs:
             # Calculate completion rate (verified / total)
-            completion = round((org.verified_gigs / org.total_gigs * 100), 0) if org.total_gigs > 0 else 0
+            completion = round((org.gigs_verified / org.gigs_total * 100), 0) if org.gigs_total > 0 else 0
             
             sites_data.append({
                 'id': org.id,
                 'name': org.name,
-                'workers': org.unique_workers,
-                'gigs': org.total_gigs,
+                'workers': org.workers_count,
+                'gigs': org.gigs_total,
                 'completion': completion
             })
         
@@ -2606,7 +2616,7 @@ class Contractor7DayCalendarView(APIView):
             })
         
         return Response(calendar)
-
+    
 
 class ContractorOrganizationsView(APIView):
     """
@@ -2620,10 +2630,11 @@ class ContractorOrganizationsView(APIView):
         print(f"[ContractorOrganizationsView] User: {user}")
         
         # Get user's organizations with stats
+        # Use different names to avoid conflict with @property methods
         organizations = Organization.objects.filter(owner=user).annotate(
-            total_gigs=Count('gigs'),
-            verified_gigs=Count('gigs', filter=Q(gigs__is_verified=True)),
-            unique_workers=Count('gigs__worker', distinct=True)
+            gigs_total=Count('gigs'),
+            gigs_verified=Count('gigs', filter=Q(gigs__is_verified=True)),
+            workers_count=Count('gigs__worker', distinct=True)
         ).order_by('-created_at')
         
         orgs_data = []
@@ -2638,14 +2649,15 @@ class ContractorOrganizationsView(APIView):
                 'phone_number': org.phone_number,
                 'is_active': org.is_active,
                 'created_at': org.created_at.isoformat(),
-                'total_gigs': org.total_gigs,
-                'verified_gigs': org.verified_gigs,
-                'unique_workers': org.unique_workers
+                'total_gigs': org.gigs_total,
+                'verified_gigs': org.gigs_verified,
+                'unique_workers': org.workers_count
             })
         
         return Response(orgs_data)
+    
 
-
+    
 class ContractorGigsByOrganizationView(APIView):
     """
     Get gigs filtered by organization

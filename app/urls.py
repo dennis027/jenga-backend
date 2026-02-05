@@ -56,7 +56,6 @@ urlpatterns = [
     path('api/upload-payment/', PaymentUploadView.as_view(), name='upload_payment'),
     path('api/user-work-history/', UserGigHistoryView.as_view(), name='my-work-history'),
     path('api/gigs-available/', GigsAvailableListCreateView.as_view(), name='gig-list-create'),
-
     path('api/credit-history/', CreditScoreHistoryView.as_view(), name='credit-history'),
   
 
