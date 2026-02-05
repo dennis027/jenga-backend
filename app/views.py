@@ -1044,7 +1044,7 @@ class VerifyGigView(APIView):
         gig.verified_by = request.user
         gig.save()
 
-        # ✅ Update worker's credit score (using User model)
+        # Update worker's credit score (using User model)
         worker = gig.logged_by
         if hasattr(worker, "credit_score"):  # Ensure the field exists
             worker.credit_score = worker.credit_score + 5  # Increase score
