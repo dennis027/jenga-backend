@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import ContractorComparativeAnalyticsView, ContractorGigTrendsView, ContractorJobTypeAnalyticsView, ContractorLocationAnalyticsView, ContractorOrganizationPerformanceView, ContractorRevenueAnalyticsView, ContractorSummaryDashboardView, ContractorVerificationMetricsView, ContractorWorkerPerformanceView, ContractorWorkerRetentionView, CreditScoreHistoryView, FundiRecentWorkLogsView, GigCompletionRateView, GigCountAnalysisView, GigRevenueAnalysisView, GigTrendsView, GigsAvailableListCreateView, LatestVerificationView, RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, TopEarningGigsView, UserOrganizationGigListView, VerificationActionView, VerificationRequestCreateView, VerificationRequestListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView,ResendVerificationEmailView,SendOTPView,CompleteGigAPIView,WeeklyWorkerReportView,WeeklyGigReportView,JobTypeDistributionReportView,Fundi30DayCalendarView,OrgPerformanceReportView,UserOrganizationListCreateView,FundiAllGigsView,FundiDashboardStatsView, VerificationImpactReportView,FundiCreditScoreHistoryView,FundiOrganizationsWorkedView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  ,ContractorDashboardStatsView,ContractorRecentGigsView,ContractorWeeklyChartView,ContractorTopSitesView,ContractorTopWorkersView,Contractor7DayCalendarView,ContractorOrganizationsView,ContractorGigsByOrganizationView,ContractorUnverifiedGigsView
+from .views import ContractorComparativeAnalyticsView, ContractorGigTrendsView, ContractorJobTypeAnalyticsView, ContractorLocationAnalyticsView, ContractorOrganizationPerformanceView, ContractorRevenueAnalyticsView, ContractorSummaryDashboardView, ContractorVerificationMetricsView, ContractorWorkerPerformanceView, ContractorWorkerRetentionView, CreditScoreHistoryView, FundiComparativeAnalyticsView, FundiCreditScoreAnalyticsView, FundiEarningsAnalyticsView, FundiJobTypeAnalyticsView, FundiLocationAnalyticsView, FundiOrganizationPerformanceView, FundiRecentWorkLogsView, FundiSummaryDashboardView, FundiVerificationMetricsView, FundiWorkConsistencyView, FundiWorkTrendsView, GigCompletionRateView, GigCountAnalysisView, GigRevenueAnalysisView, GigTrendsView, GigsAvailableListCreateView, LatestVerificationView, RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, TopEarningGigsView, UserOrganizationGigListView, VerificationActionView, VerificationRequestCreateView, VerificationRequestListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView,ResendVerificationEmailView,SendOTPView,CompleteGigAPIView,WeeklyWorkerReportView,WeeklyGigReportView,JobTypeDistributionReportView,Fundi30DayCalendarView,OrgPerformanceReportView,UserOrganizationListCreateView,FundiAllGigsView,FundiDashboardStatsView, VerificationImpactReportView,FundiCreditScoreHistoryView,FundiOrganizationsWorkedView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  ,ContractorDashboardStatsView,ContractorRecentGigsView,ContractorWeeklyChartView,ContractorTopSitesView,ContractorTopWorkersView,Contractor7DayCalendarView,ContractorOrganizationsView,ContractorGigsByOrganizationView,ContractorUnverifiedGigsView
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
@@ -123,7 +123,7 @@ urlpatterns = [
     path('api/contractor/dashboard/unverified-gigs/', ContractorUnverifiedGigsView.as_view(), name='contractor-unverified-gigs'),
 
 
-        # Analytics APIs
+        # Jenga  Analytics APIs
     path('api/contractor/analytics/gig-trends/', ContractorGigTrendsView.as_view(), name='analytics-gig-trends'),
     path('api/contractor/analytics/worker-performance/', ContractorWorkerPerformanceView.as_view(), name='analytics-worker-performance'),
     path('api/contractor/analytics/job-types/', ContractorJobTypeAnalyticsView.as_view(), name='analytics-job-types'),
@@ -134,6 +134,19 @@ urlpatterns = [
     path('api/contractor/analytics/worker-retention/', ContractorWorkerRetentionView.as_view(), name='analytics-retention'),
     path('api/contractor/analytics/comparative/', ContractorComparativeAnalyticsView.as_view(), name='analytics-comparative'),
     path('api/contractor/analytics/summary/', ContractorSummaryDashboardView.as_view(), name='analytics-summary'),
+
+    #FUNDI Pro 
+
+    path('api/fundi/analytics/work-trends/', FundiWorkTrendsView.as_view(), name='fundi-analytics-work-trends'),
+    path('api/fundi/analytics/organization-performance/', FundiOrganizationPerformanceView.as_view(), name='fundi-analytics-org-performance'),
+    path('api/fundi/analytics/job-types/', FundiJobTypeAnalyticsView.as_view(), name='fundi-analytics-job-types'),
+    path('api/fundi/analytics/credit-score/', FundiCreditScoreAnalyticsView.as_view(), name='fundi-analytics-credit-score'),
+    path('api/fundi/analytics/earnings/', FundiEarningsAnalyticsView.as_view(), name='fundi-analytics-earnings'),
+    path('api/fundi/analytics/location/', FundiLocationAnalyticsView.as_view(), name='fundi-analytics-location'),
+    path('api/fundi/analytics/verification/', FundiVerificationMetricsView.as_view(), name='fundi-analytics-verification'),
+    path('api/fundi/analytics/work-consistency/', FundiWorkConsistencyView.as_view(), name='fundi-analytics-consistency'),
+    path('api/fundi/analytics/comparative/', FundiComparativeAnalyticsView.as_view(), name='fundi-analytics-comparative'),
+    path('api/fundi/analytics/summary/', FundiSummaryDashboardView.as_view(), name='fundi-analytics-summary'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
   
