@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
-from .views import CreditScoreHistoryView, FundiRecentWorkLogsView, GigCompletionRateView, GigCountAnalysisView, GigRevenueAnalysisView, GigTrendsView, GigsAvailableListCreateView, LatestVerificationView, RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, TopEarningGigsView, UserOrganizationGigListView, VerificationActionView, VerificationRequestCreateView, VerificationRequestListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView,ResendVerificationEmailView,SendOTPView,CompleteGigAPIView,WeeklyWorkerReportView,WeeklyGigReportView,JobTypeDistributionReportView,Fundi30DayCalendarView,OrgPerformanceReportView,UserOrganizationListCreateView,FundiAllGigsView,FundiDashboardStatsView, VerificationImpactReportView,FundiCreditScoreHistoryView,FundiOrganizationsWorkedView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  ,ContractorDashboardStatsView,ContractorRecentGigsView,ContractorWeeklyChartView,ContractorTopSitesView,ContractorTopWorkersView,Contractor7DayCalendarView,ContractorOrganizationsView,ContractorGigsByOrganizationView,ContractorUnverifiedGigsView
+from .views import ContractorComparativeAnalyticsView, ContractorGigTrendsView, ContractorJobTypeAnalyticsView, ContractorLocationAnalyticsView, ContractorOrganizationPerformanceView, ContractorRevenueAnalyticsView, ContractorSummaryDashboardView, ContractorVerificationMetricsView, ContractorWorkerPerformanceView, ContractorWorkerRetentionView, CreditScoreHistoryView, FundiRecentWorkLogsView, GigCompletionRateView, GigCountAnalysisView, GigRevenueAnalysisView, GigTrendsView, GigsAvailableListCreateView, LatestVerificationView, RegisterView, LoginView, LogoutView, CookieLoginView , ProfileUpdateView, LogGigView, TopEarningGigsView, UserOrganizationGigListView, VerificationActionView, VerificationRequestCreateView, VerificationRequestListView, VerifyGigView,GigListView,UserProfileView,JobTypeListCreateView,JobTypeDeleteView,PaymentUploadView,LoggedByUserGigListView,UserGigHistoryView,CheckEmailExists,CheckUsernameExists,CheckPhoneExists, STKNewPushView, STKNewCallbackView,OrganizationListCreateView,OrganizationDetailUpdateView, OrganizationSoftDeleteView,WorkerSearchAPIView,VerifyResetCodeView,ConfirmResetPasswordView,RequestPasswordResetView,MpesaMessagesAPIView,UserMpesaMessagesAPIView,GigSearchView,UserListAPIView,ActivateAccountAPIView,ResendVerificationEmailView,SendOTPView,CompleteGigAPIView,WeeklyWorkerReportView,WeeklyGigReportView,JobTypeDistributionReportView,Fundi30DayCalendarView,OrgPerformanceReportView,UserOrganizationListCreateView,FundiAllGigsView,FundiDashboardStatsView, VerificationImpactReportView,FundiCreditScoreHistoryView,FundiOrganizationsWorkedView, OrganizationGigsAPIView,activation_success_view ,activation_failed_view ,extract_transaction_code  ,ContractorDashboardStatsView,ContractorRecentGigsView,ContractorWeeklyChartView,ContractorTopSitesView,ContractorTopWorkersView,Contractor7DayCalendarView,ContractorOrganizationsView,ContractorGigsByOrganizationView,ContractorUnverifiedGigsView
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
@@ -121,6 +121,19 @@ urlpatterns = [
     path('api/contractor/organizations/', ContractorOrganizationsView.as_view(), name='contractor-organizations'),
     path('api/contractor/organizations/<int:org_id>/gigs/', ContractorGigsByOrganizationView.as_view(), name='contractor-org-gigs'),
     path('api/contractor/dashboard/unverified-gigs/', ContractorUnverifiedGigsView.as_view(), name='contractor-unverified-gigs'),
+
+
+        # Analytics APIs
+    path('api/contractor/analytics/gig-trends/', ContractorGigTrendsView.as_view(), name='analytics-gig-trends'),
+    path('api/contractor/analytics/worker-performance/', ContractorWorkerPerformanceView.as_view(), name='analytics-worker-performance'),
+    path('api/contractor/analytics/job-types/', ContractorJobTypeAnalyticsView.as_view(), name='analytics-job-types'),
+    path('api/contractor/analytics/organization-performance/', ContractorOrganizationPerformanceView.as_view(), name='analytics-org-performance'),
+    path('api/contractor/analytics/revenue/', ContractorRevenueAnalyticsView.as_view(), name='analytics-revenue'),
+    path('api/contractor/analytics/location/', ContractorLocationAnalyticsView.as_view(), name='analytics-location'),
+    path('api/contractor/analytics/verification/', ContractorVerificationMetricsView.as_view(), name='analytics-verification'),
+    path('api/contractor/analytics/worker-retention/', ContractorWorkerRetentionView.as_view(), name='analytics-retention'),
+    path('api/contractor/analytics/comparative/', ContractorComparativeAnalyticsView.as_view(), name='analytics-comparative'),
+    path('api/contractor/analytics/summary/', ContractorSummaryDashboardView.as_view(), name='analytics-summary'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
   
